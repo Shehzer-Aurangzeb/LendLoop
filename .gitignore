@@ -1,0 +1,53 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+.next/
+out/
+build/
+dist/
+
+# Environment files (real secrets live only here)
+.env
+.env.local
+.env.*.local
+.env.production
+
+# n8n local data, if ever mounted into the repo
+n8n/data/
+
+# IDE and OS
+.idea/
+*.swp
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Testing
+coverage/
+playwright-report/
+test-results/
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Private brief: job and personal context, never commit
+BRIEF.md
+
+# AI workflow specs and tickets (temporary, local only)
+issues/
+
+# Local Claude Code settings
+.claude/settings.local.json
+
+# Misc from create-next-app
+*.pem
+.vercel
+
+# Local Convex deployment data
+.convex/
