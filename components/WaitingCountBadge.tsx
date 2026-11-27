@@ -1,6 +1,6 @@
 'use client'
 
-import { catchError } from 'next/error'
+import HideOnError from '@/components/HideOnError'
 import { useWaitingCount } from '@/components/useWaitingCount'
 
 const WaitingCountBadge = () => {
@@ -23,13 +23,11 @@ const WaitingCountBadge = () => {
   )
 }
 
-// The header sits outside every page's error boundary; a failed count drops the badge, not the layout.
-const DropBadgeOnError = catchError(() => null)
-
+// A failed count drops the badge, not the header.
 const SafeWaitingCountBadge = () => (
-  <DropBadgeOnError>
+  <HideOnError>
     <WaitingCountBadge />
-  </DropBadgeOnError>
+  </HideOnError>
 )
 
 export default SafeWaitingCountBadge

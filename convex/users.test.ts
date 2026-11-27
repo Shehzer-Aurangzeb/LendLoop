@@ -79,3 +79,38 @@ describe('users.store', () => {
     expect((error as ConvexError<string>).data).toBe('Please sign in.')
   })
 })
+
+describe('users.amIAdmin', () => {
+  test('an admin gets true', async () => {
+    const t = convexTest(schema, modules)
+    const asNeighbour = t.withIdentity(neighbour)
+    const id = await asNeighbour.mutation(api.users.store)
+
+    await t.run((ctx) => ctx.db.patch(id, { role: 'admin' }))
+
+    expect(await asNeighbour.query(api.users.amIAdmin)).toBe(true)
+  })
+
+  test('a user gets false', async () => {
+    const t = convexTest(schema, modules)
+    const asNeighbour = t.withIdentity(neighbour)
+
+    await asNeighbour.mutation(api.users.store)
+
+    expect(await asNeighbour.query(api.users.amIAdmin)).toBe(false)
+  })
+
+  test('a signed-in caller with no user row gets false', async () => {
+    const t = convexTest(schema, modules)
+
+    expect(await t.withIdentity(neighbour).query(api.users.amIAdmin)).toBe(
+      false
+    )
+  })
+
+  test('a signed-out caller gets false', async () => {
+    const t = convexTest(schema, modules)
+
+    expect(await t.query(api.users.amIAdmin)).toBe(false)
+  })
+})

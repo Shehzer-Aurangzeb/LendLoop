@@ -1,21 +1,21 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { useOwnToolChanges } from '@/components/useOwnToolChanges'
-import type { Id } from '@/convex/_generated/dataModel'
 
 type RemoveToolButtonProps = {
-  toolId: Id<'tools'>
+  toolName: string
+  // Resolves to a short message when refused, or null when removed.
+  removeTool: () => Promise<string | null>
   onRemoved: () => void
   onRefused: (message: string) => void
 }
 
 const RemoveToolButton = ({
-  toolId,
+  toolName,
+  removeTool,
   onRemoved,
   onRefused,
 }: RemoveToolButtonProps) => {
-  const { removeTool } = useOwnToolChanges()
   const [isConfirming, setIsConfirming] = useState(false)
   const [isRemoving, setIsRemoving] = useState(false)
   const removeButtonRef = useRef<HTMLButtonElement>(null)
@@ -30,7 +30,7 @@ const RemoveToolButton = ({
       return
     }
     setIsRemoving(true)
-    const message = await removeTool(toolId)
+    const message = await removeTool()
 
     if (message === null) {
       onRemoved()
@@ -49,7 +49,7 @@ const RemoveToolButton = ({
   }
 
   return (
-    <div className="flex flex-wrap gap-3 border-t border-line pt-5">
+    <div className="flex flex-wrap gap-3">
       {/* One button for both steps keeps focus in place; aria-disabled, not disabled, so focus survives a refusal. */}
       <button
         type="button"
@@ -59,6 +59,7 @@ const RemoveToolButton = ({
         className="min-h-11 cursor-pointer rounded-full border border-red-700 px-5 text-sm font-semibold text-red-700 hover:bg-red-50 aria-disabled:cursor-wait aria-disabled:opacity-70"
       >
         {isRemoving ? 'Removing…' : isConfirming ? 'Yes, remove' : 'Remove'}
+        <span className="sr-only"> {toolName}</span>
       </button>
       {isConfirming && !isRemoving && (
         <button

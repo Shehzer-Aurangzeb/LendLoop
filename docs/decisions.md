@@ -87,6 +87,9 @@ Running list, one entry per decision. Becomes the design and security section of
 - **The borrower's "You're borrowing" list also flags an overdue loan.** The borrower is the one who must hand the tool back, and the mockup shows the pill there too. It uses the same overdue rule as the lender's list.
 - **`approve` refuses a loan whose tool was removed.** Removing a tool already declines its waiting requests, but the check keeps F5's admin removal from reopening that gap.
 - **Mark as returned needs an approved loan that has started.** A loan that never began cannot be closed as returned; the lender declines or waits.
+- **The admin's remove (`admin.removeListing`) works even while the tool is lent out.** Refusing would leave a busy spam listing stuck forever. Setting `removedAt` already hides it and blocks new requests and approvals; the approved loan runs to its end and the lender still marks it returned. Waiting requests are declined in the same transaction.
+- **Every admin function calls `requireAdmin` first.** The header link and the `/admin` page read `users.amIAdmin`, a boolean that only shapes the UI. Because Convex queries are live, a demoted admin's open page loses its data at once.
+- **Removing a listing asks "Yes, remove / Keep it" for the admin too.** Removal cannot be undone from the app, so both remove buttons share the same confirm step.
 
 ## Data minimisation
 

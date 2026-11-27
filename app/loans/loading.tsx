@@ -1,11 +1,11 @@
-import LoanListSkeleton from '@/components/LoanListSkeleton'
+import ListSkeleton from '@/components/ListSkeleton'
 import SignedInPage from '@/components/SignedInPage'
 
 // cacheComponents needs a Suspense boundary above a page that reads the request (auth).
 export default function Loading() {
   return (
     <SignedInPage>
-      <LoanListSkeleton />
+      <ListSkeleton label="Loading your loans" rowHeightPx={88} />
     </SignedInPage>
   )
 }

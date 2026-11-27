@@ -4,7 +4,8 @@ import type { MutationCtx } from '@/convex/_generated/server'
 import type { Id } from '@/convex/_generated/dataModel'
 import { requireUser } from '@/convex/lib/auth'
 import { todayInAppTimezone } from '@/convex/lib/dates'
-import { isLentOutOn } from '@/convex/lib/loans'
+import { declineWaitingRequests, isLentOutOn } from '@/convex/lib/loans'
+import { requireLiveTool } from '@/convex/lib/tools'
 import { firstNameOf, loadUsersById } from '@/convex/lib/users'
 import { categoryValidator, conditionValidator } from '@/convex/schema'
 import {
@@ -39,11 +40,8 @@ const trimAndCheckToolText = (text: {
 // For the lender's own changes; the admin's remove in F5 has its own rules.
 const requireOwnTool = async (ctx: MutationCtx, toolId: Id<'tools'>) => {
   const user = await requireUser(ctx)
-  const tool = await ctx.db.get(toolId)
+  const tool = await requireLiveTool(ctx, toolId)
 
-  if (!tool || tool.removedAt !== undefined) {
-    throw new ConvexError('Tool not found.')
-  }
   if (tool.ownerId !== user._id) {
     throw new ConvexError('You can only change your own tools.')
   }
@@ -309,11 +307,7 @@ export const removeOwn = mutation({
       throw new ConvexError('This tool has an active loan.')
     }
 
-    for (const loan of loans) {
-      if (loan.status === 'requested') {
-        await ctx.db.patch(loan._id, { status: 'declined' })
-      }
-    }
+    await declineWaitingRequests(ctx, toolId)
     await ctx.db.patch(toolId, { removedAt: Date.now() })
 
     return null

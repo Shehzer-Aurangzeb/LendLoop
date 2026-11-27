@@ -1,0 +1,244 @@
+import { convexTest } from 'convex-test'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
+import type { TestConvex } from 'convex-test'
+import { api } from '@/convex/_generated/api'
+import type { Doc, Id } from '@/convex/_generated/dataModel'
+import schema from '@/convex/schema'
+
+const modules = import.meta.glob('./**/*.ts')
+
+// 03:00 UTC on the 27th is still the 26th in Toronto.
+const now = '2026-11-27T03:00:00Z'
+const today = '2026-11-26'
+const yesterday = '2026-11-25'
+
+const asha = { name: 'Asha Patel', tokenIdentifier: 'asha' }
+const ben = { name: 'Ben Okafor', tokenIdentifier: 'ben' }
+const cara = { name: 'Cara Lim', tokenIdentifier: 'cara' }
+const dana = { name: 'Dana Ruiz', tokenIdentifier: 'dana' }
+
+const drill = {
+  name: 'Drill',
+  description: 'Cordless, two batteries',
+  category: 'power-tools',
+  condition: 'good',
+} as const
+
+beforeEach(() => {
+  vi.stubEnv('APP_TIMEZONE', 'America/Toronto')
+  vi.useFakeTimers({ toFake: ['Date'] })
+  vi.setSystemTime(new Date(now))
+})
+
+afterEach(() => {
+  vi.useRealTimers()
+  vi.unstubAllEnvs()
+})
+
+const signUp = async (
+  t: TestConvex<typeof schema>,
+  identity: { name: string; tokenIdentifier: string }
+) => {
+  const asUser = t.withIdentity(identity)
+
+  await asUser.mutation(api.users.store)
+
+  return asUser
+}
+
+const makeAdmin = (t: TestConvex<typeof schema>, tokenIdentifier: string) =>
+  t.run(async (ctx) => {
+    const user = await ctx.db
+      .query('users')
+      .withIndex('by_token', (q) => q.eq('tokenIdentifier', tokenIdentifier))
+      .unique()
+
+    await ctx.db.patch(user!._id, { role: 'admin' })
+  })
+
+// Asha lends a drill; Ben and Cara borrow; Dana is the Admin.
+const setUpAshasDrill = async () => {
+  const t = convexTest(schema, modules)
+  const asAsha = await signUp(t, asha)
+  const asBen = await signUp(t, ben)
+  const asCara = await signUp(t, cara)
+  const asDana = await signUp(t, dana)
+
+  await makeAdmin(t, 'dana')
+  const toolId = await asAsha.mutation(api.tools.create, drill)
+
+  return { t, asAsha, asBen, asCara, asDana, toolId }
+}
+
+type NewLoan = Pick<Doc<'loans'>, 'startDate' | 'endDate' | 'status'>
+
+const insertLoan = (
+  t: TestConvex<typeof schema>,
+  toolId: Id<'tools'>,
+  borrowerToken: string,
+  loan: NewLoan
+) =>
+  t.run(async (ctx) => {
+    const tool = await ctx.db.get(toolId)
+    const borrower = await ctx.db
+      .query('users')
+      .withIndex('by_token', (q) => q.eq('tokenIdentifier', borrowerToken))
+      .unique()
+
+    return await ctx.db.insert('loans', {
+      ...loan,
+      toolId,
+      lenderId: tool!.ownerId,
+      borrowerId: borrower!._id,
+    })
+  })
+
+const storedTool = (t: TestConvex<typeof schema>, toolId: Id<'tools'>) =>
+  t.run((ctx) => ctx.db.get(toolId))
+
+const storedLoan = (t: TestConvex<typeof schema>, loanId: Id<'loans'>) =>
+  t.run((ctx) => ctx.db.get(loanId))
+
+describe('admin.listListings', () => {
+  test('a signed-out caller is refused', async () => {
+    const { t } = await setUpAshasDrill()
+
+    await expect(t.query(api.admin.listListings)).rejects.toThrow(
+      'Please sign in.'
+    )
+  })
+
+  test('a non-admin is refused', async () => {
+    const { asBen } = await setUpAshasDrill()
+
+    await expect(asBen.query(api.admin.listListings)).rejects.toThrow(
+      'Admins only.'
+    )
+  })
+
+  test('lists live tools with lender first name and no email, removed tools left out', async () => {
+    const { t, asAsha, asDana, toolId } = await setUpAshasDrill()
+    const tentId = await asAsha.mutation(api.tools.create, {
+      ...drill,
+      name: 'Tent',
+      category: 'camping',
+    })
+
+    await t.run((ctx) => ctx.db.patch(tentId, { removedAt: Date.now() }))
+
+    const listings = await asDana.query(api.admin.listListings)
+
+    expect(listings).toEqual([
+      {
+        _id: toolId,
+        name: 'Drill',
+        category: 'power-tools',
+        lenderFirstName: 'Asha',
+      },
+    ])
+    expect(JSON.stringify(listings)).not.toContain('@')
+  })
+})
+
+describe('admin.removeListing', () => {
+  test('a signed-out caller is refused and nothing changes', async () => {
+    const { t, toolId } = await setUpAshasDrill()
+    const loanId = await insertLoan(t, toolId, 'ben', {
+      startDate: '2026-12-11',
+      endDate: '2026-12-13',
+      status: 'requested',
+    })
+
+    await expect(
+      t.mutation(api.admin.removeListing, { toolId })
+    ).rejects.toThrow('Please sign in.')
+    expect((await storedTool(t, toolId))?.removedAt).toBeUndefined()
+    expect((await storedLoan(t, loanId))?.status).toBe('requested')
+  })
+
+  test('a non-admin is refused and nothing changes', async () => {
+    const { t, asBen, toolId } = await setUpAshasDrill()
+    const loanId = await insertLoan(t, toolId, 'cara', {
+      startDate: '2026-12-11',
+      endDate: '2026-12-13',
+      status: 'requested',
+    })
+
+    await expect(
+      asBen.mutation(api.admin.removeListing, { toolId })
+    ).rejects.toThrow('Admins only.')
+    expect((await storedTool(t, toolId))?.removedAt).toBeUndefined()
+    expect((await storedLoan(t, loanId))?.status).toBe('requested')
+  })
+
+  test('a lent-out tool is removed, its loan stays approved and the lender can still mark it returned', async () => {
+    const { t, asAsha, asDana, toolId } = await setUpAshasDrill()
+    const loanId = await insertLoan(t, toolId, 'ben', {
+      startDate: yesterday,
+      endDate: today,
+      status: 'approved',
+    })
+
+    await asDana.mutation(api.admin.removeListing, { toolId })
+
+    expect((await storedTool(t, toolId))?.removedAt).toBeTypeOf('number')
+    expect((await storedLoan(t, loanId))?.status).toBe('approved')
+
+    await asAsha.mutation(api.loans.markReturned, { loanId })
+
+    expect((await storedLoan(t, loanId))?.status).toBe('returned')
+  })
+
+  test('every waiting request is declined', async () => {
+    const { t, asDana, toolId } = await setUpAshasDrill()
+    const benLoanId = await insertLoan(t, toolId, 'ben', {
+      startDate: '2026-12-11',
+      endDate: '2026-12-13',
+      status: 'requested',
+    })
+    const caraLoanId = await insertLoan(t, toolId, 'cara', {
+      startDate: '2026-12-20',
+      endDate: '2026-12-21',
+      status: 'requested',
+    })
+
+    await asDana.mutation(api.admin.removeListing, { toolId })
+
+    expect((await storedLoan(t, benLoanId))?.status).toBe('declined')
+    expect((await storedLoan(t, caraLoanId))?.status).toBe('declined')
+  })
+
+  test('a removed tool cannot be requested', async () => {
+    const { asBen, asDana, toolId } = await setUpAshasDrill()
+
+    await asDana.mutation(api.admin.removeListing, { toolId })
+
+    await expect(
+      asBen.mutation(api.loans.request, {
+        toolId,
+        startDate: '2026-12-11',
+        endDate: '2026-12-13',
+      })
+    ).rejects.toThrow('Tool not found.')
+  })
+
+  test('removing an already removed tool is refused', async () => {
+    const { asDana, toolId } = await setUpAshasDrill()
+
+    await asDana.mutation(api.admin.removeListing, { toolId })
+
+    await expect(
+      asDana.mutation(api.admin.removeListing, { toolId })
+    ).rejects.toThrow('Tool not found.')
+  })
+
+  test('removing an unknown tool is refused', async () => {
+    const { t, asDana, toolId } = await setUpAshasDrill()
+
+    await t.run((ctx) => ctx.db.delete(toolId))
+
+    await expect(
+      asDana.mutation(api.admin.removeListing, { toolId })
+    ).rejects.toThrow('Tool not found.')
+  })
+})
