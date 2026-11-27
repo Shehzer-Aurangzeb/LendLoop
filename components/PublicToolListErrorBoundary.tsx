@@ -3,7 +3,7 @@
 import { catchError } from 'next/error'
 
 const PublicToolListErrorFallback = () => (
-  <p role="alert" className="text-zinc-600">
+  <p role="alert" className="text-[15px] text-ink-muted">
     We could not load the tools right now. Please refresh the page.
   </p>
 )

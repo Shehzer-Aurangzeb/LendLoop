@@ -32,10 +32,10 @@ const CategoryFilter = ({ selected, onSelect }: CategoryFilterProps) => (
           type="button"
           aria-pressed={isActive}
           onClick={() => onSelect(value)}
-          className={`rounded-full border px-3 py-1 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-black ${
+          className={`min-h-11 cursor-pointer rounded-full border px-4 text-sm font-medium ${
             isActive
-              ? 'border-black bg-black text-white'
-              : 'border-zinc-300 text-zinc-700 hover:bg-zinc-100'
+              ? 'border-ink bg-ink text-white'
+              : 'border-line-strong bg-surface text-ink hover:bg-ground'
           }`}
         >
           {label}

@@ -28,6 +28,16 @@ Running list, one entry per decision. Becomes the design and security section of
 - **`requireIdentity` is separate from `requireUser`.** `users.store` runs before a users row exists, so it needs "signed in" without "has a row". All three helpers live in `convex/lib/auth.ts`, and no public function reads `ctx.auth` directly.
 - **`requireUser` and `requireAdmin` throw on the server.** The UI also waits for `users.store` before running user queries, but that is only so the screen looks right. The server check is what protects the data.
 
+## Design
+
+- **Screens follow one approved design, kept outside the repo.** It is drawn before the signed-in features so every screen shares one look; the mockup files sit in a gitignored folder and are deleted when the app is done.
+- **Colours are Tailwind theme tokens named for their role** (ground, ink, accent…). Components use token classes, never raw hex, so a colour changes in one place.
+- **One global focus ring in CSS** instead of focus classes on each control, so nothing interactive can ship without it.
+- **Each category's icon and tile tint live in one `Record<Category, …>`.** A new category is a type error until it has both.
+- **Step numbers use a darker marigold than the logo.** The design's marigold is 3.4:1 on white; text needs 4.5:1.
+- **Signed in, the landing page hides its sign-in prompts**, the hero button and the "See something you need?" band, since their only job is to invite sign-in.
+- **Loan status colours wait for the loan screens.** The landing page has no statuses to show.
+
 ## Data model
 
 - **Loan dates are `"YYYY-MM-DD"` strings.** Convex has no Date type, loans cover whole days, and strings compare correctly as text. No timezone can shift a loan by a day.

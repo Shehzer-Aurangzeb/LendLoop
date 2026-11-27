@@ -1,26 +1,53 @@
 @import 'tailwindcss';
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  --color-ground: #f8f6f1;
+  --color-surface: #ffffff;
+  --color-line: #e7e2d8;
+  --color-line-strong: #d9d2c4;
+  --color-ink: #1e2621;
+  --color-ink-soft: #4c5550;
+  --color-ink-muted: #5a635d;
+  --color-ink-on-dark-muted: #c9d2cc;
+  --color-accent: #2e5e46;
+  --color-accent-strong: #1f4433;
+  --color-accent-soft: #e6efe8;
+  --color-marigold: #c7782a;
+  /* Design marigold is 3.4:1 on white; this darker shade passes 4.5:1 for small text. */
+  --color-marigold-ink: #a8621f;
+
+  --color-tint-power-tools: #f4e6d7;
+  --color-tint-hand-tools: #ece6da;
+  --color-tint-garden: #e1ecdf;
+  --color-tint-kitchen: #f5e3de;
+  --color-tint-camping: #dfe8ee;
+  --color-tint-other: #ece9e2;
+
+  --shadow-lift: 0 12px 30px -12px rgb(30 38 33 / 0.45);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-inter);
+  --font-display: var(--font-bricolage);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+@utility page-container {
+  width: 100%;
+  max-width: 1160px;
+  margin-inline: auto;
+  padding-inline: --spacing(6);
+}
+
+@utility section-heading {
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 3px;
   }
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
 }
