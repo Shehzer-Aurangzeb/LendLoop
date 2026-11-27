@@ -5,10 +5,11 @@ import type { FormEvent } from 'react'
 import { categoryLabels } from '@/components/categoryLabels'
 import CategoryTile from '@/components/CategoryTile'
 import PillRadioGroup from '@/components/PillRadioGroup'
+import RemoveToolButton from '@/components/RemoveToolButton'
 import SegmentedRadioGroup from '@/components/SegmentedRadioGroup'
 import { conditionLabels } from '@/components/conditionLabels'
-import { useSaveTool } from '@/components/useSaveTool'
-import type { ToolFields } from '@/components/useSaveTool'
+import { useOwnToolChanges } from '@/components/useOwnToolChanges'
+import type { ToolFields } from '@/components/useOwnToolChanges'
 import type { Id } from '@/convex/_generated/dataModel'
 import {
   TOOL_DESCRIPTION_MAX_LENGTH,
@@ -27,6 +28,8 @@ const fieldLabelClass =
 const inputClass =
   'rounded-xl border border-line-strong p-3 text-[15px] font-normal text-ink'
 
+export const toolFormHeadingId = 'tool-form-title'
+
 const createLabels = {
   heading: 'List a tool',
   submit: 'Put it on the board',
@@ -43,10 +46,15 @@ type ToolFormProps = {
   // Undefined means the form lists a new tool.
   toolBeingEdited?: ToolFields & { _id: Id<'tools'> }
   onEditingDone: () => void
+  onRemoved: () => void
 }
 
-const ToolForm = ({ toolBeingEdited, onEditingDone }: ToolFormProps) => {
-  const { createTool, updateTool } = useSaveTool()
+const ToolForm = ({
+  toolBeingEdited,
+  onEditingDone,
+  onRemoved,
+}: ToolFormProps) => {
+  const { createTool, updateTool } = useOwnToolChanges()
   // Picked field by field: listMine rows will carry loan status too, which update's validator rejects.
   const [tool, setTool] = useState<ToolFields>(() =>
     toolBeingEdited
@@ -95,11 +103,11 @@ const ToolForm = ({ toolBeingEdited, onEditingDone }: ToolFormProps) => {
 
   return (
     <section
-      aria-labelledby="tool-form-title"
+      aria-labelledby={toolFormHeadingId}
       className="flex flex-[1_1_400px] flex-col gap-5 rounded-3xl border border-line bg-surface p-6"
     >
       <h2
-        id="tool-form-title"
+        id={toolFormHeadingId}
         ref={headingRef}
         tabIndex={-1}
         className="font-display text-2xl font-semibold tracking-[-0.02em]"
@@ -184,6 +192,13 @@ const ToolForm = ({ toolBeingEdited, onEditingDone }: ToolFormProps) => {
             </button>
           )}
         </div>
+        {editingToolId && (
+          <RemoveToolButton
+            toolId={editingToolId}
+            onRemoved={onRemoved}
+            onRefused={setError}
+          />
+        )}
       </form>
     </section>
   )

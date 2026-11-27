@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import MyToolList, { editToolButtonId } from '@/components/MyToolList'
 import MyToolListSkeleton from '@/components/MyToolListSkeleton'
-import ToolForm from '@/components/ToolForm'
+import ToolForm, { toolFormHeadingId } from '@/components/ToolForm'
 import { useQueryOnceUserReady } from '@/components/useQueryOnceUserReady'
 import { api } from '@/convex/_generated/api'
 import type { Id } from '@/convex/_generated/dataModel'
@@ -11,24 +11,30 @@ import type { Id } from '@/convex/_generated/dataModel'
 const MyToolsWorkspace = () => {
   const tools = useQueryOnceUserReady(api.tools.listMine)
   const [editingToolId, setEditingToolId] = useState<Id<'tools'>>()
-  const [toolIdToRefocus, setToolIdToRefocus] = useState<Id<'tools'>>()
+  const [elementIdToFocus, setElementIdToFocus] = useState<string>()
   // Read from the live list, so a tool removed elsewhere quietly drops the form back to "List a tool".
   const toolBeingEdited = tools?.find((tool) => tool._id === editingToolId)
 
-  // After the row re-renders, so a renamed tool's button is announced with its new name.
+  // After the re-render, so focus lands on the Edit button with its new name, or on the form once its tool is gone.
   useEffect(() => {
-    if (toolIdToRefocus) {
-      document.getElementById(editToolButtonId(toolIdToRefocus))?.focus()
+    if (elementIdToFocus) {
+      document.getElementById(elementIdToFocus)?.focus()
     }
-  }, [toolIdToRefocus])
+  }, [elementIdToFocus])
 
   const startEditing = (toolId: Id<'tools'>) => {
-    setToolIdToRefocus(undefined)
+    setElementIdToFocus(undefined)
     setEditingToolId(toolId)
   }
 
   const finishEditing = () => {
-    setToolIdToRefocus(editingToolId)
+    setElementIdToFocus(editingToolId && editToolButtonId(editingToolId))
+    setEditingToolId(undefined)
+  }
+
+  // The removed tool's row is gone, so focus lands on the form, now "List a tool".
+  const finishRemoving = () => {
+    setElementIdToFocus(toolFormHeadingId)
     setEditingToolId(undefined)
   }
 
@@ -46,6 +52,7 @@ const MyToolsWorkspace = () => {
         key={toolBeingEdited?._id ?? 'new'}
         toolBeingEdited={toolBeingEdited}
         onEditingDone={finishEditing}
+        onRemoved={finishRemoving}
       />
     </div>
   )

@@ -65,6 +65,10 @@ Running list, one entry per decision. Becomes the design and security section of
 - **`tools.update` answers "Tool not found" for a missing or removed tool, before the ownership check.** Editing is allowed while a tool is lent out; only removal is blocked by a loan.
 - **The edit form holds the id of the tool being edited and reads the tool from the live list.** A tool removed elsewhere drops the form back to "List a tool" with no stale copy; a `key` per tool resets the fields without an effect.
 
+- **A lender's remove (`tools.removeOwn`) is refused while any approved loan exists, started or not, and declines pending requests in the same transaction.** Every check throws before the first write, so a refused removal changes nothing. The admin's remove in F5 is a separate function.
+- **One `requireOwnTool` helper decides "exists, not removed, and yours"** for every lender change, so update and remove cannot drift apart.
+- **The two-step remove is one button whose label changes, with no `confirm()`.** Focus stays on it between steps; after a removal it moves to the form heading, since the tool's row is gone.
+
 ## Data minimisation
 
 - **The public list shows tool name and category only.** Strangers do not need to know which house has a drill.

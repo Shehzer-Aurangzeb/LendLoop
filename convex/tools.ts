@@ -1,5 +1,7 @@
 import { ConvexError, v } from 'convex/values'
 import { mutation, query } from '@/convex/_generated/server'
+import type { MutationCtx } from '@/convex/_generated/server'
+import type { Id } from '@/convex/_generated/dataModel'
 import { requireUser } from '@/convex/lib/auth'
 import { todayInAppTimezone } from '@/convex/lib/dates'
 import { categoryValidator, conditionValidator } from '@/convex/schema'
@@ -30,6 +32,21 @@ const trimAndCheckToolText = (text: {
   }
 
   return { name, description }
+}
+
+// For the lender's own changes; the admin's remove in F5 has its own rules.
+const requireOwnTool = async (ctx: MutationCtx, toolId: Id<'tools'>) => {
+  const user = await requireUser(ctx)
+  const tool = await ctx.db.get(toolId)
+
+  if (!tool || tool.removedAt !== undefined) {
+    throw new ConvexError('Tool not found')
+  }
+  if (tool.ownerId !== user._id) {
+    throw new ConvexError('You can only change your own tools')
+  }
+
+  return tool
 }
 
 // Public on purpose: the signed-out tool list, so no auth helper call.
@@ -171,21 +188,40 @@ export const update = mutation({
   },
   returns: v.null(),
   handler: async (ctx, { toolId, category, condition, ...text }) => {
-    const user = await requireUser(ctx)
-    const tool = await ctx.db.get(toolId)
-
-    if (!tool || tool.removedAt !== undefined) {
-      throw new ConvexError('Tool not found')
-    }
-    if (tool.ownerId !== user._id) {
-      throw new ConvexError('You can only change your own tools')
-    }
+    await requireOwnTool(ctx, toolId)
 
     await ctx.db.patch(toolId, {
       ...trimAndCheckToolText(text),
       category,
       condition,
     })
+
+    return null
+  },
+})
+
+// Soft delete: past loans keep pointing at the tool.
+export const removeOwn = mutation({
+  args: { toolId: v.id('tools') },
+  returns: v.null(),
+  handler: async (ctx, { toolId }) => {
+    await requireOwnTool(ctx, toolId)
+    const loans = await ctx.db
+      .query('loans')
+      .withIndex('by_tool', (q) => q.eq('toolId', toolId))
+      .collect()
+
+    // Approved means not yet returned, whether it has started or not.
+    if (loans.some((loan) => loan.status === 'approved')) {
+      throw new ConvexError('This tool has an active loan')
+    }
+
+    for (const loan of loans) {
+      if (loan.status === 'requested') {
+        await ctx.db.patch(loan._id, { status: 'declined' })
+      }
+    }
+    await ctx.db.patch(toolId, { removedAt: Date.now() })
 
     return null
   },

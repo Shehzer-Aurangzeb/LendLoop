@@ -3,7 +3,7 @@ import { ConvexError } from 'convex/values'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import type { TestConvex } from 'convex-test'
 import { api } from '@/convex/_generated/api'
-import type { Doc } from '@/convex/_generated/dataModel'
+import type { Doc, Id } from '@/convex/_generated/dataModel'
 import schema from '@/convex/schema'
 
 const modules = import.meta.glob('./**/*.ts')
@@ -237,6 +237,31 @@ const listAshasDrill = async () => {
   return { t, asAsha, toolId }
 }
 
+type NewLoan = Pick<Doc<'loans'>, 'startDate' | 'endDate' | 'status'>
+
+// Ben must have signed up already; the tool's owner is the lender.
+const insertLoansFromBen = (
+  t: TestConvex<typeof schema>,
+  toolId: Id<'tools'>,
+  loans: NewLoan[]
+) =>
+  t.run(async (ctx) => {
+    const tool = await ctx.db.get(toolId)
+    const borrower = await ctx.db
+      .query('users')
+      .withIndex('by_token', (q) => q.eq('tokenIdentifier', 'ben'))
+      .unique()
+
+    for (const loan of loans) {
+      await ctx.db.insert('loans', {
+        ...loan,
+        toolId,
+        lenderId: tool!.ownerId,
+        borrowerId: borrower!._id,
+      })
+    }
+  })
+
 describe('tools.update', () => {
   test('the lender can change all four fields; trimmed text is saved', async () => {
     const { t, asAsha, toolId } = await listAshasDrill()
@@ -314,22 +339,9 @@ describe('tools.update', () => {
     const { t, asAsha, toolId } = await listAshasDrill()
     const asBen = await signUp(t, ben)
 
-    await t.run(async (ctx) => {
-      const tool = await ctx.db.get(toolId)
-      const borrower = await ctx.db
-        .query('users')
-        .withIndex('by_token', (q) => q.eq('tokenIdentifier', 'ben'))
-        .unique()
-
-      await ctx.db.insert('loans', {
-        toolId,
-        lenderId: tool!.ownerId,
-        borrowerId: borrower!._id,
-        startDate: '2020-01-01',
-        endDate: '2099-12-31',
-        status: 'approved',
-      })
-    })
+    await insertLoansFromBen(t, toolId, [
+      { startDate: '2020-01-01', endDate: '2099-12-31', status: 'approved' },
+    ])
     const [drillOnBoard] = await asBen.query(api.tools.listForBoard)
 
     expect(drillOnBoard.lentOut).toBeDefined()
@@ -340,33 +352,16 @@ describe('tools.update', () => {
   })
 })
 
-type BoardLoan = Pick<Doc<'loans'>, 'startDate' | 'endDate' | 'status'>
-
 // 03:00 UTC on the 27th is still the 26th in Toronto, so a UTC "today" fails.
 const boardNow = '2026-11-27T03:00:00Z'
 
-const listDrillWithLoans = async (loans: BoardLoan[]) => {
+const listDrillWithLoans = async (loans: NewLoan[]) => {
   const t = convexTest(schema, modules)
   const asAsha = await signUp(t, asha)
   const asBen = await signUp(t, ben)
   const toolId = await asAsha.mutation(api.tools.create, newTool)
 
-  await t.run(async (ctx) => {
-    const tool = await ctx.db.get(toolId)
-    const borrower = await ctx.db
-      .query('users')
-      .withIndex('by_token', (q) => q.eq('tokenIdentifier', 'ben'))
-      .unique()
-
-    for (const loan of loans) {
-      await ctx.db.insert('loans', {
-        ...loan,
-        toolId,
-        lenderId: tool!.ownerId,
-        borrowerId: borrower!._id,
-      })
-    }
-  })
+  await insertLoansFromBen(t, toolId, loans)
 
   const [drill] = await asBen.query(api.tools.listForBoard)
 
@@ -547,5 +542,124 @@ describe('tools.listForBoard', () => {
     ])
 
     expect(drill.lentOut).toEqual({ until: '2026-11-26', isOverdue: false })
+  })
+})
+
+const loanStatuses = (t: TestConvex<typeof schema>) =>
+  t.run(async (ctx) =>
+    (await ctx.db.query('loans').collect()).map((loan) => loan.status)
+  )
+
+// Read outside t.run, which turns an undefined result into null.
+const removedAtOf = async (
+  t: TestConvex<typeof schema>,
+  toolId: Id<'tools'>
+) => (await t.run((ctx) => ctx.db.get(toolId)))?.removedAt
+
+describe('tools.removeOwn', () => {
+  test('the lender removes a free tool; it leaves My tools and the Board', async () => {
+    const { t, asAsha, toolId } = await listAshasDrill()
+    const asBen = await signUp(t, ben)
+
+    await asAsha.mutation(api.tools.removeOwn, { toolId })
+
+    expect(await removedAtOf(t, toolId)).toEqual(expect.any(Number))
+    expect(await asAsha.query(api.tools.listMine)).toEqual([])
+    expect(await asBen.query(api.tools.listForBoard)).toEqual([])
+  })
+
+  test('another neighbour is refused and the tool is unchanged', async () => {
+    const { t, toolId } = await listAshasDrill()
+    const asBen = await signUp(t, ben)
+
+    await expect(
+      asBen.mutation(api.tools.removeOwn, { toolId })
+    ).rejects.toThrow('You can only change your own tools')
+    expect(await removedAtOf(t, toolId)).toBeUndefined()
+  })
+
+  test('a signed-out caller is refused', async () => {
+    const { t, toolId } = await listAshasDrill()
+
+    await expect(t.mutation(api.tools.removeOwn, { toolId })).rejects.toThrow(
+      'Please sign in'
+    )
+    expect(await removedAtOf(t, toolId)).toBeUndefined()
+  })
+
+  test.each([
+    ['a started', '2020-01-01', '2099-12-31'],
+    ['an overdue', '2020-01-01', '2020-01-05'],
+    ['a future', '2099-01-01', '2099-01-05'],
+  ])(
+    '%s approved loan blocks removal; pending requests stay pending',
+    async (_, startDate, endDate) => {
+      const { t, asAsha, toolId } = await listAshasDrill()
+
+      await signUp(t, ben)
+      await insertLoansFromBen(t, toolId, [
+        { startDate, endDate, status: 'approved' },
+        { startDate: '2099-02-01', endDate: '2099-02-03', status: 'requested' },
+      ])
+
+      await expect(
+        asAsha.mutation(api.tools.removeOwn, { toolId })
+      ).rejects.toThrow('This tool has an active loan')
+      expect(await removedAtOf(t, toolId)).toBeUndefined()
+      expect(await loanStatuses(t)).toEqual(['approved', 'requested'])
+    }
+  )
+
+  test('pending requests are declined; returned, declined and cancelled loans do not block and stay as they were', async () => {
+    const { t, asAsha, toolId } = await listAshasDrill()
+
+    await signUp(t, ben)
+    await insertLoansFromBen(t, toolId, [
+      { startDate: '2026-01-01', endDate: '2026-01-05', status: 'returned' },
+      { startDate: '2026-02-01', endDate: '2026-02-05', status: 'declined' },
+      { startDate: '2026-03-01', endDate: '2026-03-05', status: 'cancelled' },
+      { startDate: '2099-01-01', endDate: '2099-01-05', status: 'requested' },
+      { startDate: '2099-02-01', endDate: '2099-02-05', status: 'requested' },
+    ])
+
+    await asAsha.mutation(api.tools.removeOwn, { toolId })
+
+    expect(await loanStatuses(t)).toEqual([
+      'returned',
+      'declined',
+      'cancelled',
+      'declined',
+      'declined',
+    ])
+    expect(await removedAtOf(t, toolId)).toEqual(
+      expect.any(Number)
+    )
+  })
+
+  test("other tools' pending requests are left alone", async () => {
+    const { t, asAsha, toolId } = await listAshasDrill()
+    const otherToolId = await asAsha.mutation(api.tools.create, {
+      ...newTool,
+      name: 'Ladder',
+    })
+
+    await signUp(t, ben)
+    await insertLoansFromBen(t, otherToolId, [
+      { startDate: '2099-01-01', endDate: '2099-01-05', status: 'requested' },
+    ])
+
+    await asAsha.mutation(api.tools.removeOwn, { toolId })
+
+    expect(await loanStatuses(t)).toEqual(['requested'])
+  })
+
+  test('a removed tool cannot be removed again', async () => {
+    const { asAsha, toolId } = await listAshasDrill()
+
+    await asAsha.mutation(api.tools.removeOwn, { toolId })
+
+    await expect(
+      asAsha.mutation(api.tools.removeOwn, { toolId })
+    ).rejects.toThrow('Tool not found')
   })
 })

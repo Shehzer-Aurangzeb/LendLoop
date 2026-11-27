@@ -6,17 +6,17 @@ import type { Id } from '@/convex/_generated/dataModel'
 
 export type ToolFields = FunctionArgs<typeof api.tools.create>
 
-// Resolves to a short message for the form, or null when the save worked.
-const messageAfterSaving = async (
-  save: () => Promise<unknown>,
+// Resolves to a short message for the form, or null when the change worked.
+const messageAfterChange = async (
+  change: () => Promise<unknown>,
   fallback: string
 ) => {
   try {
-    await save()
+    await change()
 
     return null
   } catch (error) {
-    console.error('Saving a tool failed', error)
+    console.error('Changing a tool failed', error)
     // Only our ConvexError messages are written for people; anything else is not.
     if (error instanceof ConvexError && typeof error.data === 'string') {
       return error.data
@@ -26,20 +26,26 @@ const messageAfterSaving = async (
   }
 }
 
-export const useSaveTool = () => {
+export const useOwnToolChanges = () => {
   const create = useMutation(api.tools.create)
   const update = useMutation(api.tools.update)
+  const removeOwn = useMutation(api.tools.removeOwn)
 
   return {
     createTool: (fields: ToolFields) =>
-      messageAfterSaving(
+      messageAfterChange(
         () => create(fields),
         'We could not list your tool. Please try again.'
       ),
     updateTool: (fields: ToolFields & { toolId: Id<'tools'> }) =>
-      messageAfterSaving(
+      messageAfterChange(
         () => update(fields),
         'We could not save your changes. Please try again.'
+      ),
+    removeTool: (toolId: Id<'tools'>) =>
+      messageAfterChange(
+        () => removeOwn({ toolId }),
+        'We could not remove your tool. Please try again.'
       ),
   }
 }
