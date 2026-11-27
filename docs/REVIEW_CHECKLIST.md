@@ -13,6 +13,7 @@ Rules the `pr-reviewer` agent checks every diff against. Concise rule plus a one
 ## Data minimisation
 
 - **The signed-out tool list returns name and category only.** Why: no owner details to strangers.
+- **Every public query a signed-out visitor can call declares a `returns` validator for exactly the fields it exposes.** Why: a field added to the table later is rejected by Convex instead of leaking to strangers.
 - **Queries return only the fields the screen needs; no whole user documents.** Why: what the client gets, anyone can read in devtools.
 - **n8n payloads carry only the fields the message needs.** Why: less data in a third-party system means less to leak.
 
