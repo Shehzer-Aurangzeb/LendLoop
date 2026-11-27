@@ -49,6 +49,7 @@ Running list, one entry per decision. Becomes the design and security section of
 
 - **HMAC both directions, separate secrets**, verified on the raw body.
 - **Reminder write-backs are idempotent on `loanId + date`.** A retried write-back changes nothing.
+- **The reminder duplicate check reads the `loanId + date` index and filters on `kind`.** A loan has only a few activity rows a day, so a filter is cheap, and keeping `kind` out of the index keeps the per-loan activity list sorted by date.
 - **`/overdue` skips loans already reminded today.** A manual rerun never sends a second email.
 - **n8n writes back once per loan per run, `sent` or `failed`.** Retries happen on the send node; a final failure also triggers the error workflow.
 

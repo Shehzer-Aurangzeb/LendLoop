@@ -12,7 +12,7 @@ Rules the `pr-reviewer` agent checks every diff against. Concise rule plus a one
 
 ## Data minimisation
 
-- **The signed-out tool list returns name, category and availability only.** Why: no owner details to strangers.
+- **The signed-out tool list returns name and category only.** Why: no owner details to strangers.
 - **Queries return only the fields the screen needs; no whole user documents.** Why: what the client gets, anyone can read in devtools.
 - **n8n payloads carry only the fields the message needs.** Why: less data in a third-party system means less to leak.
 
@@ -22,6 +22,7 @@ Rules the `pr-reviewer` agent checks every diff against. Concise rule plus a one
 - **HMAC is computed on the raw body and compared in constant time; a missing or bad signature returns 401 before any work.** Why: re-serialised JSON changes the bytes, and a plain `===` leaks timing.
 - **Signed requests carry a timestamp, and old ones are rejected.** Why: stops replay of a captured request.
 - **Write-backs are idempotent on `loanId + date`.** Why: n8n retries must never create a second reminder record.
+- **A duplicate check matches the full idempotency key, including the activity kind.** Why: a partly matched key lets one kind of row block another.
 - **No secret appears in code, in `.env.example` values, or in exported workflow JSON.** Why: the repo is public.
 
 ## Loans
@@ -34,3 +35,4 @@ Rules the `pr-reviewer` agent checks every diff against. Concise rule plus a one
 
 - **Follow `CLAUDE.md`: My coding style, Frontend work, Comments.**
 - **No new dependency without a one-line reason.**
+- **A new required Convex env var goes into `.env.example` and the README setup steps in the same PR.** Why: otherwise a fresh clone fails on a variable nobody mentioned.
