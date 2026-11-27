@@ -2,7 +2,7 @@ import { convexTest } from 'convex-test'
 import { ConvexError } from 'convex/values'
 import { describe, expect, test } from 'vitest'
 import schema from '@/convex/schema'
-import { requireAdmin, requireIdentity, requireUser } from './auth'
+import { requireAdmin, requireIdentity, requireUser } from '@/convex/lib/auth'
 
 // A glob, not an import: convex-test needs every convex/ module, and globs
 // are relative to this file.

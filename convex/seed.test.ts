@@ -1,7 +1,7 @@
 import { convexTest } from 'convex-test'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
-import { api, internal } from './_generated/api'
-import schema from './schema'
+import { api, internal } from '@/convex/_generated/api'
+import schema from '@/convex/schema'
 
 const modules = import.meta.glob('./**/*.ts')
 

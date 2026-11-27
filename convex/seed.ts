@@ -1,8 +1,8 @@
 import type { WithoutSystemFields } from 'convex/server'
 import { v } from 'convex/values'
-import type { Doc, Id } from './_generated/dataModel'
-import { env, internalMutation } from './_generated/server'
-import { findUserByToken } from './lib/auth'
+import type { Doc, Id } from '@/convex/_generated/dataModel'
+import { env, internalMutation } from '@/convex/_generated/server'
+import { findUserByToken } from '@/convex/lib/auth'
 
 type DemoUserKey = 'maya' | 'omar' | 'priya' | 'liam' | 'chen' | 'sofia'
 
