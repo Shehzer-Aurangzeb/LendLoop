@@ -1,9 +1,11 @@
 import { ConvexError, v } from 'convex/values'
 import { mutation, query } from '@/convex/_generated/server'
-import type { MutationCtx, QueryCtx } from '@/convex/_generated/server'
-import type { Doc, Id } from '@/convex/_generated/dataModel'
+import type { MutationCtx } from '@/convex/_generated/server'
+import type { Id } from '@/convex/_generated/dataModel'
 import { requireUser } from '@/convex/lib/auth'
 import { todayInAppTimezone } from '@/convex/lib/dates'
+import { isLentOutOn } from '@/convex/lib/loans'
+import { firstNameOf, loadUsersById } from '@/convex/lib/users'
 import { categoryValidator, conditionValidator } from '@/convex/schema'
 import {
   TOOL_DESCRIPTION_MAX_LENGTH,
@@ -48,21 +50,6 @@ const requireOwnTool = async (ctx: MutationCtx, toolId: Id<'tools'>) => {
 
   return tool
 }
-
-// The full name never leaves the server; neighbours see only this.
-const firstNameOf = (user: Doc<'users'> | null | undefined) =>
-  user ? user.name.trim().split(/\s+/)[0] : ''
-
-// Lent out: approved and started. The end date only decides overdue, never "out".
-const isLentOutOn = (loan: Doc<'loans'>, today: string) =>
-  loan.status === 'approved' && loan.startDate <= today
-
-const loadUsersById = async (ctx: QueryCtx, ids: Id<'users'>[]) =>
-  new Map(
-    await Promise.all(
-      [...new Set(ids)].map(async (id) => [id, await ctx.db.get(id)] as const)
-    )
-  )
 
 // Public on purpose: the signed-out tool list, so no auth helper call.
 export const listPublic = query({
