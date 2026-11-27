@@ -63,4 +63,5 @@ Running list, one entry per decision. Becomes the design and security section of
 
 - **Paginate the public tool list.** It reads every tool per visit, fine for tens of tools.
 - **Filter by category on the server, using the `by_category` index.** Goes together with pagination; for now the browser filters the full list.
+- **Share the button focus-ring style.** Two buttons repeat the same Tailwind focus classes; pull them into one shared class when a third button needs them.
 - **Index `removedAt`.** Today removed tools are read and dropped; an index skips them once many pile up.

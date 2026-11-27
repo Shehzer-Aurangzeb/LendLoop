@@ -1,6 +1,5 @@
 import { categoryLabels } from '@/components/categoryLabels'
-
-type Category = keyof typeof categoryLabels
+import type { Category } from '@/components/categoryLabels'
 
 export type CategoryChoice = 'all' | Category
 
