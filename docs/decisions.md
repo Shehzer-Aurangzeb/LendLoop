@@ -14,6 +14,7 @@ Running list, one entry per decision. Becomes the design and security section of
 - **Next.js 16 uses `proxy.ts`, not `middleware.ts`.** Same Clerk code, new file name (Clerk Next.js quickstart).
 - **Clerk env var is declared in `convex/convex.config.ts`.** A deploy fails loudly if `CLERK_JWT_ISSUER_DOMAIN` is missing, instead of auth failing quietly at runtime (Convex Clerk guide).
 - **Local Convex deployment, no hosting.** The brief asks for a repo and local setup, not a deploy. Reviewers run Convex without an account, and n8n in Docker reaches it without a tunnel.
+- **Vitest reads the `@/` alias from `tsconfig.json`** (`resolve.tsconfigPaths`). Tests in subfolders such as `convex/lib/` can then follow the no-`../` import rule.
 - **Cache Components stays on**, the Next.js 16 default. Clerk's `<Show>` sits inside `<Suspense>` because of it.
 
 ## Auth and roles
@@ -24,6 +25,7 @@ Running list, one entry per decision. Becomes the design and security section of
 
 - **Users are keyed on `tokenIdentifier`**, Clerk's issuer plus subject, as the Convex "Storing users" docs recommend. It stays unique even if a second login provider is added.
 - **`users.store` looks up, then inserts if missing, with no unique constraint.** Convex mutations are serializable, so two tabs racing at first sign-in end with one row: the loser re-runs and finds the winner's row.
+- **`requireIdentity` is separate from `requireUser`.** `users.store` runs before a users row exists, so it needs "signed in" without "has a row". All three helpers live in `convex/lib/auth.ts`, and no public function reads `ctx.auth` directly.
 - **`requireUser` and `requireAdmin` throw on the server.** The UI also waits for `users.store` before running user queries, but that is only so the screen looks right. The server check is what protects the data.
 
 ## Data model
@@ -47,3 +49,9 @@ Running list, one entry per decision. Becomes the design and security section of
 - **Reminder write-backs are idempotent on `loanId + date`.** A retried write-back changes nothing.
 - **`/overdue` skips loans already reminded today.** A manual rerun never sends a second email.
 - **n8n writes back once per loan per run, `sent` or `failed`.** Retries happen on the send node; a final failure also triggers the error workflow.
+
+## Later, if it grows
+
+- **Paginate the public tool list.** It reads every tool per visit, fine for tens of tools.
+- **Filter by category on the server, using the `by_category` index.** Goes together with pagination; for now the browser filters the full list.
+- **Index `removedAt`.** Today removed tools are read and dropped; an index skips them once many pile up.
