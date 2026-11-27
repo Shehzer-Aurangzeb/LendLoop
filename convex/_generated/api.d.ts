@@ -12,6 +12,7 @@ import type * as lib_auth from "../lib/auth.js";
 import type * as lib_dates from "../lib/dates.js";
 import type * as lib_loans from "../lib/loans.js";
 import type * as lib_users from "../lib/users.js";
+import type * as loans from "../loans.js";
 import type * as seed from "../seed.js";
 import type * as toolLimits from "../toolLimits.js";
 import type * as tools from "../tools.js";
@@ -28,6 +29,7 @@ declare const fullApi: ApiFromModules<{
   "lib/dates": typeof lib_dates;
   "lib/loans": typeof lib_loans;
   "lib/users": typeof lib_users;
+  loans: typeof loans;
   seed: typeof seed;
   toolLimits: typeof toolLimits;
   tools: typeof tools;

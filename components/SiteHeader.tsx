@@ -41,6 +41,9 @@ const SiteHeader = () => (
             <Link href="/my-tools" className={`inline-flex ${linkClass}`}>
               My tools
             </Link>
+            <Link href="/loans" className={`inline-flex ${linkClass}`}>
+              Loans
+            </Link>
             <UserButton
               appearance={{
                 // Clerk's default avatar is 28px; 44px meets the touch target.

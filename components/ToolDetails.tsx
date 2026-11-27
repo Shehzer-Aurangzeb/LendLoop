@@ -24,7 +24,7 @@ const ToolDetails = ({ toolId }: { toolId: string }) => {
     )
   }
 
-  return <ToolProfile tool={tool} />
+  return <ToolProfile toolId={toolId} tool={tool} />
 }
 
 export default ToolDetails

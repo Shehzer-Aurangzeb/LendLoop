@@ -2,6 +2,7 @@ import { useId } from 'react'
 import type { FunctionReturnType } from 'convex/server'
 import Link from 'next/link'
 import AlreadyLentDates from '@/components/AlreadyLentDates'
+import BorrowRequestForm from '@/components/BorrowRequestForm'
 import { categoryLabels } from '@/components/categoryLabels'
 import CategoryTile from '@/components/CategoryTile'
 import { conditionLabels } from '@/components/conditionLabels'
@@ -16,7 +17,12 @@ type ToolForPage = NonNullable<
 const chipClass =
   'rounded-full border border-line bg-surface px-3 py-1 text-[13px] text-ink-soft'
 
-const ToolProfile = ({ tool }: { tool: ToolForPage }) => {
+type ToolProfileProps = {
+  toolId: string
+  tool: ToolForPage
+}
+
+const ToolProfile = ({ toolId, tool }: ToolProfileProps) => {
   const panelTitleId = useId()
 
   return (
@@ -62,6 +68,12 @@ const ToolProfile = ({ tool }: { tool: ToolForPage }) => {
           </p>
         )}
         <AlreadyLentDates loans={tool.approvedLoans} />
+        {!tool.isMine && (
+          <BorrowRequestForm
+            toolId={toolId}
+            lenderFirstName={tool.lenderFirstName}
+          />
+        )}
       </aside>
     </div>
   )
