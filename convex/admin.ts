@@ -7,7 +7,10 @@ import type { Id } from '@/convex/_generated/dataModel'
 import { mutation, query } from '@/convex/_generated/server'
 import { requireAdmin } from '@/convex/lib/auth'
 import { todayInAppTimezone } from '@/convex/lib/dates'
-import { declineWaitingRequests, isOverdueOn } from '@/convex/lib/loans'
+import {
+  declineAndNotifyWaitingRequests,
+  isOverdueOn,
+} from '@/convex/lib/loans'
 import { loadToolSummary, requireLiveTool } from '@/convex/lib/tools'
 import { firstNameOf, loadUsersById } from '@/convex/lib/users'
 import { categoryValidator, loanStatusValidator } from '@/convex/schema'
@@ -51,7 +54,7 @@ export const removeListing = mutation({
   handler: async (ctx, { toolId }) => {
     await requireAdmin(ctx)
     await requireLiveTool(ctx, toolId)
-    await declineWaitingRequests(ctx, toolId)
+    await declineAndNotifyWaitingRequests(ctx, toolId)
     await ctx.db.patch(toolId, { removedAt: Date.now() })
 
     return null

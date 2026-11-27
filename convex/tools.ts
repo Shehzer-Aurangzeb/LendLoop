@@ -4,7 +4,10 @@ import type { MutationCtx } from '@/convex/_generated/server'
 import type { Id } from '@/convex/_generated/dataModel'
 import { requireUser } from '@/convex/lib/auth'
 import { todayInAppTimezone } from '@/convex/lib/dates'
-import { declineWaitingRequests, isLentOutOn } from '@/convex/lib/loans'
+import {
+  declineAndNotifyWaitingRequests,
+  isLentOutOn,
+} from '@/convex/lib/loans'
 import { requireLiveTool } from '@/convex/lib/tools'
 import { firstNameOf, loadUsersById } from '@/convex/lib/users'
 import { categoryValidator, conditionValidator } from '@/convex/schema'
@@ -307,7 +310,7 @@ export const removeOwn = mutation({
       throw new ConvexError('This tool has an active loan.')
     }
 
-    await declineWaitingRequests(ctx, toolId)
+    await declineAndNotifyWaitingRequests(ctx, toolId)
     await ctx.db.patch(toolId, { removedAt: Date.now() })
 
     return null
