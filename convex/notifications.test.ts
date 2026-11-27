@@ -341,6 +341,19 @@ describe('the request notification is safe to send', () => {
     }
   })
 
+  // A hung n8n would otherwise hold the action until Convex kills it, skipping the retry and the log.
+  test('the send carries a timeout', async () => {
+    const { t, asAsha, benId, toolId } = await setUpAshasDrill()
+    const loanId = await insertLoan(t, { toolId, borrowerId: benId })
+
+    await asAsha.mutation(api.loans.approve, { loanId })
+    await runNotificationsDueWithin(t)
+
+    const [[, init]] = fetchMock.mock.calls
+
+    expect(init?.signal).toBeInstanceOf(AbortSignal)
+  })
+
   test('the signature is the HMAC-SHA256 of the exact body sent', async () => {
     const { t, asAsha, benId, toolId } = await setUpAshasDrill()
     const loanId = await insertLoan(t, { toolId, borrowerId: benId })

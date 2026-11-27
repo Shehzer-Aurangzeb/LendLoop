@@ -84,6 +84,8 @@ const postSigned = async (url: string, secret: string, body: string) => {
         'X-LendLoop-Signature': await hmacSha256Hex(secret, body),
       },
       body,
+      // A hung n8n turns into a retry instead of holding the action until Convex kills it.
+      signal: AbortSignal.timeout(10_000),
     })
 
     return response.ok
@@ -92,7 +94,7 @@ const postSigned = async (url: string, secret: string, body: string) => {
   }
 }
 
-// Never throws: the loan change already committed, so a notifier problem is only logged.
+// Never throws on a send failure: the loan change already committed, so a notifier problem is only logged.
 export const sendRequestNotification = internalAction({
   args: {
     loanId: v.id('loans'),

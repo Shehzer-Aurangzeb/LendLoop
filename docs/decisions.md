@@ -121,13 +121,14 @@ Running list, one entry per decision. Becomes the design and security section of
 - **`sentAt` may be up to 60 seconds in the future.** Small clock drift between the Convex host and the n8n container should not reject a real request.
 - **`notificationId` is `<loanId>:<event>`.** A loan's status only moves forward, so each pair happens once per loan.
 - **Retries after 1 minute, then 5 minutes, then a `console.error`.** Three tries ride out a short n8n restart. Each retry sends a fresh `sentAt` and a new signature but the same `notificationId`, so a late success is still deduped.
-- **The action never throws.** The loan change already committed; a notifier problem is a log line, not a failed approval.
+- **The action never throws on a send failure.** The loan change already committed; a notifier problem is a log line, not a failed approval.
 - **`N8N_REQUEST_WEBHOOK_URL` and `N8N_WEBHOOK_SECRET` are read with `process.env` in the action**, not declared in `convex.config.ts`. A missing value is a logged error, and Convex still deploys without n8n.
 - **The shared secret lives in Convex env vars, the n8n Crypto credential, and the gitignored `n8n/.env` for the local test script.** The exported workflow JSON names the credential by id and name only, so it is safe to commit.
 - **docker-compose passes only `N8N_ENCRYPTION_KEY` into the container**, not the whole `n8n/.env`. The webhook secret in that file is for the test script, so it never enters the container's environment.
 - **n8n's port is bound to `127.0.0.1`.** Only this machine can reach the webhook and the editor.
 - **The signature check reads the raw body back from the Webhook node.** The Crypto node drops the binary it hashed. Tested in n8n's default and filesystem binary modes.
-- **An unknown `event` makes the log step throw, so n8n answers 500.** Convex then retries and finally logs it, instead of a silent 200.
+- **An unknown `event` is refused with a 401 in the signature check, before the dedupe.** Refused there, the id is never marked handled, so Convex retries and finally logs it instead of getting a silent 200 on the retry.
+- **Each send has a 10-second timeout.** A hung n8n becomes a normal failed try, so the retry and the final error log still happen.
 - **The test script passes the secret to `openssl` as an argument.** Other local processes could see it in the process list; fine for a local test tool, never for production code. The README's `npx convex env set N8N_WEBHOOK_SECRET` step has the same local-only trade-off.
 
 ## Known limits
