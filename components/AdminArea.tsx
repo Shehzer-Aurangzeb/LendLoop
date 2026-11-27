@@ -13,7 +13,7 @@ const AdminArea = () => {
   const isAdmin = useQueryOnceUserReady(api.users.amIAdmin)
 
   if (isAdmin === undefined) {
-    return <ListSkeleton label="Loading listings" rowHeightPx={76} />
+    return <ListSkeleton label="Loading the admin page" rowHeightPx={76} />
   }
   if (!isAdmin) {
     return (
