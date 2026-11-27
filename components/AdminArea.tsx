@@ -1,6 +1,7 @@
 'use client'
 
 import ListSkeleton from '@/components/ListSkeleton'
+import AdminLendersSection from '@/components/AdminLendersSection'
 import AdminListingsSection from '@/components/AdminListingsSection'
 import AdminLoansSection from '@/components/AdminLoansSection'
 import LoadErrorBoundary from '@/components/LoadErrorBoundary'
@@ -24,10 +25,15 @@ const AdminArea = () => {
 
   return (
     <>
-      <AdminListingsSection />
-      {/* Its own boundary, so a failed loan page leaves Listings usable. */}
+      <LoadErrorBoundary message="We could not load the listings right now. Please refresh the page.">
+        <AdminListingsSection />
+      </LoadErrorBoundary>
+      {/* One boundary per section, so one failed section leaves the others usable. */}
       <LoadErrorBoundary message="We could not load the loans right now. Please refresh the page.">
         <AdminLoansSection />
+      </LoadErrorBoundary>
+      <LoadErrorBoundary message="We could not load the lenders right now. Please refresh the page.">
+        <AdminLendersSection />
       </LoadErrorBoundary>
     </>
   )

@@ -13,7 +13,7 @@ const AdminLoanList = ({ loans }: { loans: AdminLoan[] }) => (
         key={loan._id}
         toolName={loan.toolName}
         toolCategory={loan.toolCategory}
-        otherPersonLine={`${loan.borrowerFirstName} from ${loan.lenderFirstName}`}
+        otherPersonLine={`${loan.borrowerFirstName} borrowing from ${loan.lenderFirstName}`}
         startDate={loan.startDate}
         endDate={loan.endDate}
       >

@@ -2,7 +2,8 @@ import {
   paginationOptsValidator,
   paginationResultValidator,
 } from 'convex/server'
-import { v } from 'convex/values'
+import { ConvexError, v } from 'convex/values'
+import type { Id } from '@/convex/_generated/dataModel'
 import { mutation, query } from '@/convex/_generated/server'
 import { requireAdmin } from '@/convex/lib/auth'
 import { todayInAppTimezone } from '@/convex/lib/dates'
@@ -106,5 +107,59 @@ export const listLoans = query({
         }))
       ),
     }
+  },
+})
+
+// ponytail: loads every live tool, like listListings; paginate if tools pass the hundreds.
+export const listLenders = query({
+  args: {},
+  returns: v.array(
+    v.object({
+      userId: v.id('users'),
+      firstName: v.string(),
+      liveToolCount: v.number(),
+      isTrustedLender: v.boolean(),
+    })
+  ),
+  handler: async (ctx) => {
+    await requireAdmin(ctx)
+    const liveToolCounts = new Map<Id<'users'>, number>()
+
+    for (const tool of await ctx.db.query('tools').collect()) {
+      if (tool.removedAt === undefined) {
+        liveToolCounts.set(
+          tool.ownerId,
+          (liveToolCounts.get(tool.ownerId) ?? 0) + 1
+        )
+      }
+    }
+    const lenders = await loadUsersById(ctx, [...liveToolCounts.keys()])
+
+    return [...liveToolCounts]
+      .map(([userId, liveToolCount]) => {
+        const lender = lenders.get(userId)
+
+        return {
+          userId,
+          firstName: firstNameOf(lender),
+          liveToolCount,
+          isTrustedLender: lender?.isTrustedLender ?? false,
+        }
+      })
+      .sort((a, b) => a.firstName.localeCompare(b.firstName))
+  },
+})
+
+export const setTrustedLender = mutation({
+  args: { userId: v.id('users'), isTrusted: v.boolean() },
+  returns: v.null(),
+  handler: async (ctx, { userId, isTrusted }) => {
+    await requireAdmin(ctx)
+    if (!(await ctx.db.get(userId))) {
+      throw new ConvexError('User not found.')
+    }
+    await ctx.db.patch(userId, { isTrustedLender: isTrusted })
+
+    return null
   },
 })

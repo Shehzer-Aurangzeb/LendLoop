@@ -91,11 +91,15 @@ Running list, one entry per decision. Becomes the design and security section of
 - **Every admin function calls `requireAdmin` first.** The header link and the `/admin` page read `users.amIAdmin`, a boolean that only shapes the UI. Because Convex queries are live, a demoted admin's open page loses its data at once.
 - **Removing a listing asks "Yes, remove / Keep it" for the admin too.** Removal cannot be undone from the app, so both remove buttons share the same confirm step.
 - **With a status filter, the admin loan list is ordered by end date, latest first; with "All" it is newest created first.** The filter reads the `by_status_and_endDate` index, which sorts by end date. A one-field status index would give true newest-first, but it is not worth a new index for an admin list.
+- **The admin lender list shows owners of live tools only.** A neighbour whose tools are all removed drops off it, and their Trusted Lender mark stays as it is, so it comes back if they list again.
+- **Trusted Lender is a toggle the admin can grant and revoke.** The board badge reads `users.isTrustedLender` live, so it follows at once and a mistake is one click to undo.
+- **The lender toggle is a button with `aria-pressed`, not a checkbox.** It saves on click, like the other admin actions, and screen readers announce it as on or off.
 
 ## Data minimisation
 
 - **The public list shows tool name and category only.** Strangers do not need to know which house has a drill.
 - **`tools.listPublic` maps each tool to `{ name, category }` and declares a `returns` validator for that shape.** Convex rejects the response if an extra field slips in, so a later schema change cannot leak data by accident.
+- **Admin queries return first names only, never an email or a whole user row.** Each declares an exact `returns` validator, so Convex rejects any extra field.
 - **The public list returns no `_id`.** Nothing public addresses a single tool, so the React key is position plus name.
 - **The category union is defined once and shared by the schema and the public query.** The two cannot drift apart.
 - **The public page reads the list with `useQuery`, a live subscription.** A tool added while a visitor has the page open appears without a reload. `fetchQuery` would be a one-off snapshot.
@@ -117,7 +121,7 @@ Running list, one entry per decision. Becomes the design and security section of
 
 ## Later, if it grows
 
-- **Paginate the public tool list.** It reads every tool per visit, fine for tens of tools.
+- **Paginate the public tool list.** It reads every tool per visit, fine for tens of tools. The admin `listListings` and `listLenders` load every tool too.
 - **Filter by category on the server, using the `by_category` index.** Goes together with pagination; for now the browser filters the full list.
 - **Share the button focus-ring style.** Two buttons repeat the same Tailwind focus classes; pull them into one shared class when a third button needs them.
 - **Index `removedAt`.** Today removed tools are read and dropped; an index skips them once many pile up.

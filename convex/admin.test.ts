@@ -47,15 +47,22 @@ const signUp = async (
   return asUser
 }
 
-const makeAdmin = (t: TestConvex<typeof schema>, tokenIdentifier: string) =>
-  t.run(async (ctx) => {
-    const user = await ctx.db
+const storedUser = (t: TestConvex<typeof schema>, tokenIdentifier: string) =>
+  t.run((ctx) =>
+    ctx.db
       .query('users')
       .withIndex('by_token', (q) => q.eq('tokenIdentifier', tokenIdentifier))
       .unique()
+  )
 
-    await ctx.db.patch(user!._id, { role: 'admin' })
-  })
+const makeAdmin = async (
+  t: TestConvex<typeof schema>,
+  tokenIdentifier: string
+) => {
+  const user = await storedUser(t, tokenIdentifier)
+
+  await t.run((ctx) => ctx.db.patch(user!._id, { role: 'admin' }))
+}
 
 // Asha lends a drill; Ben and Cara borrow; Dana is the Admin.
 const setUpAshasDrill = async () => {
@@ -73,18 +80,16 @@ const setUpAshasDrill = async () => {
 
 type NewLoan = Pick<Doc<'loans'>, 'startDate' | 'endDate' | 'status'>
 
-const insertLoan = (
+const insertLoan = async (
   t: TestConvex<typeof schema>,
   toolId: Id<'tools'>,
   borrowerToken: string,
   loan: NewLoan
-) =>
-  t.run(async (ctx) => {
+) => {
+  const borrower = await storedUser(t, borrowerToken)
+
+  return await t.run(async (ctx) => {
     const tool = await ctx.db.get(toolId)
-    const borrower = await ctx.db
-      .query('users')
-      .withIndex('by_token', (q) => q.eq('tokenIdentifier', borrowerToken))
-      .unique()
 
     return await ctx.db.insert('loans', {
       ...loan,
@@ -93,6 +98,7 @@ const insertLoan = (
       borrowerId: borrower!._id,
     })
   })
+}
 
 const storedTool = (t: TestConvex<typeof schema>, toolId: Id<'tools'>) =>
   t.run((ctx) => ctx.db.get(toolId))
@@ -391,5 +397,125 @@ describe('admin.listLoans', () => {
     })
 
     expect(page.map((row) => row.toolName)).toEqual(['Drill'])
+  })
+})
+
+describe('admin.listLenders', () => {
+  test('a signed-out caller is refused', async () => {
+    const { t } = await setUpAshasDrill()
+
+    await expect(t.query(api.admin.listLenders)).rejects.toThrow(
+      'Please sign in.'
+    )
+  })
+
+  test('a non-admin is refused', async () => {
+    const { asBen } = await setUpAshasDrill()
+
+    await expect(asBen.query(api.admin.listLenders)).rejects.toThrow(
+      'Admins only.'
+    )
+  })
+
+  test('lists owners of live tools once each, with live tool counts and no email', async () => {
+    const { t, asAsha, asBen, asCara, asDana } = await setUpAshasDrill()
+
+    await asAsha.mutation(api.tools.create, { ...drill, name: 'Saw' })
+    const removedTentId = await asAsha.mutation(api.tools.create, {
+      ...drill,
+      name: 'Tent',
+    })
+    const carasOnlyToolId = await asCara.mutation(api.tools.create, drill)
+
+    await asBen.mutation(api.tools.create, { ...drill, name: 'Ladder' })
+    await t.run(async (ctx) => {
+      await ctx.db.patch(removedTentId, { removedAt: Date.now() })
+      await ctx.db.patch(carasOnlyToolId, { removedAt: Date.now() })
+    })
+
+    const lenders = await asDana.query(api.admin.listLenders)
+    const ashaRow = await storedUser(t, 'asha')
+    const benRow = await storedUser(t, 'ben')
+
+    expect(lenders).toEqual([
+      {
+        userId: ashaRow!._id,
+        firstName: 'Asha',
+        liveToolCount: 2,
+        isTrustedLender: false,
+      },
+      {
+        userId: benRow!._id,
+        firstName: 'Ben',
+        liveToolCount: 1,
+        isTrustedLender: false,
+      },
+    ])
+    expect(JSON.stringify(lenders)).not.toContain('@')
+  })
+})
+
+describe('admin.setTrustedLender', () => {
+  test('a signed-out caller is refused and nothing changes', async () => {
+    const { t } = await setUpAshasDrill()
+    const ashaRow = await storedUser(t, 'asha')
+
+    await expect(
+      t.mutation(api.admin.setTrustedLender, {
+        userId: ashaRow!._id,
+        isTrusted: true,
+      })
+    ).rejects.toThrow('Please sign in.')
+    expect((await storedUser(t, 'asha'))?.isTrustedLender).toBe(false)
+  })
+
+  test('a non-admin is refused and nothing changes', async () => {
+    const { t, asBen } = await setUpAshasDrill()
+    const ashaRow = await storedUser(t, 'asha')
+
+    await expect(
+      asBen.mutation(api.admin.setTrustedLender, {
+        userId: ashaRow!._id,
+        isTrusted: true,
+      })
+    ).rejects.toThrow('Admins only.')
+    expect((await storedUser(t, 'asha'))?.isTrustedLender).toBe(false)
+  })
+
+  test('granting then revoking shows then hides the badge on the board', async () => {
+    const { t, asBen, asDana } = await setUpAshasDrill()
+    const ashaRow = await storedUser(t, 'asha')
+    const isDrillBadged = async () =>
+      (await asBen.query(api.tools.listForBoard))[0].isLenderTrusted
+
+    await asDana.mutation(api.admin.setTrustedLender, {
+      userId: ashaRow!._id,
+      isTrusted: true,
+    })
+
+    expect((await storedUser(t, 'asha'))?.isTrustedLender).toBe(true)
+    expect(await isDrillBadged()).toBe(true)
+
+    await asDana.mutation(api.admin.setTrustedLender, {
+      userId: ashaRow!._id,
+      isTrusted: false,
+    })
+
+    expect((await storedUser(t, 'asha'))?.isTrustedLender).toBe(false)
+    expect(await isDrillBadged()).toBe(false)
+  })
+
+  test('an unknown user is refused', async () => {
+    const { t, asDana } = await setUpAshasDrill()
+    const ashaRow = await storedUser(t, 'asha')
+
+    await t.run((ctx) => ctx.db.delete(ashaRow!._id))
+
+    await expect(
+      asDana.mutation(api.admin.setTrustedLender, {
+        userId: ashaRow!._id,
+        isTrusted: true,
+      })
+    ).rejects.toThrow('User not found.')
   })
 })
