@@ -1,19 +1,18 @@
-'use client'
-
+import type { FunctionReturnType } from 'convex/server'
 import { categoryLabels } from '@/components/categoryLabels'
 import CategoryTile from '@/components/CategoryTile'
 import { conditionLabels } from '@/components/conditionLabels'
-import MyToolListSkeleton from '@/components/MyToolListSkeleton'
-import { useQueryOnceUserReady } from '@/components/useQueryOnceUserReady'
-import { api } from '@/convex/_generated/api'
+import type { api } from '@/convex/_generated/api'
+import type { Id } from '@/convex/_generated/dataModel'
 
-const MyToolList = () => {
-  const tools = useQueryOnceUserReady(api.tools.listMine)
+type MyToolListProps = {
+  tools: FunctionReturnType<typeof api.tools.listMine>
+  onEdit: (toolId: Id<'tools'>) => void
+}
 
-  if (tools === undefined) {
-    return <MyToolListSkeleton />
-  }
+export const editToolButtonId = (toolId: Id<'tools'>) => `edit-tool-${toolId}`
 
+const MyToolList = ({ tools, onEdit }: MyToolListProps) => {
   if (tools.length === 0) {
     return (
       <p className="text-[15px] text-ink-muted">
@@ -27,12 +26,12 @@ const MyToolList = () => {
       {tools.map((tool) => (
         <li
           key={tool._id}
-          className="flex items-center gap-4 rounded-[20px] border border-line bg-surface p-3.5"
+          className="flex flex-wrap items-center gap-4 rounded-[20px] border border-line bg-surface p-3.5"
         >
           <div className="w-24 flex-none">
             <CategoryTile category={tool.category} />
           </div>
-          <div className="flex min-w-0 flex-col gap-1">
+          <div className="flex min-w-0 flex-[1_1_200px] flex-col gap-1">
             <span className="text-[17px] font-semibold break-words">
               {tool.name}
             </span>
@@ -41,6 +40,15 @@ const MyToolList = () => {
               {conditionLabels[tool.condition]}
             </span>
           </div>
+          <button
+            type="button"
+            id={editToolButtonId(tool._id)}
+            aria-label={`Edit ${tool.name}`}
+            onClick={() => onEdit(tool._id)}
+            className="min-h-11 cursor-pointer rounded-full border border-line-strong px-4 text-sm font-semibold text-ink hover:bg-ground"
+          >
+            Edit
+          </button>
         </li>
       ))}
     </ul>

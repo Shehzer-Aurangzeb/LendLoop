@@ -62,6 +62,9 @@ Running list, one entry per decision. Becomes the design and security section of
 - **`'YYYY-MM-DD'` dates are formatted in the browser in UTC.** The string is a calendar day, so no viewer timezone can move it.
 - **The board greets with "Hi", not "Good morning".** Time of day differs between the server and browser render.
 
+- **`tools.update` answers "Tool not found" for a missing or removed tool, before the ownership check.** Editing is allowed while a tool is lent out; only removal is blocked by a loan.
+- **The edit form holds the id of the tool being edited and reads the tool from the live list.** A tool removed elsewhere drops the form back to "List a tool" with no stale copy; a `key` per tool resets the fields without an effect.
+
 ## Data minimisation
 
 - **The public list shows tool name and category only.** Strangers do not need to know which house has a drill.

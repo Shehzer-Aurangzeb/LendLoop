@@ -215,13 +215,128 @@ describe('tools.listMine', () => {
       '_id',
       'category',
       'condition',
+      'description',
       'name',
     ])
-    expect(tool).toMatchObject({
-      name: 'Drill',
-      category: 'power-tools',
-      condition: 'good',
+    expect(tool).toMatchObject(newTool)
+  })
+})
+
+const editedTool = {
+  name: 'Hammer drill',
+  description: 'Corded now, one bit set',
+  category: 'hand-tools',
+  condition: 'worn',
+} as const
+
+const listAshasDrill = async () => {
+  const t = convexTest(schema, modules)
+  const asAsha = await signUp(t, asha)
+  const toolId = await asAsha.mutation(api.tools.create, newTool)
+
+  return { t, asAsha, toolId }
+}
+
+describe('tools.update', () => {
+  test('the lender can change all four fields; trimmed text is saved', async () => {
+    const { t, asAsha, toolId } = await listAshasDrill()
+
+    await asAsha.mutation(api.tools.update, {
+      toolId,
+      ...editedTool,
+      name: '  Hammer drill ',
+      description: '\n Corded now, one bit set  ',
     })
+
+    expect(await t.run((ctx) => ctx.db.get(toolId))).toMatchObject(editedTool)
+  })
+
+  test('another neighbour is refused and the tool is unchanged', async () => {
+    const { t, toolId } = await listAshasDrill()
+    const asBen = await signUp(t, ben)
+
+    await expect(
+      asBen.mutation(api.tools.update, { toolId, ...editedTool })
+    ).rejects.toThrow('You can only change your own tools')
+    expect(await t.run((ctx) => ctx.db.get(toolId))).toMatchObject(newTool)
+  })
+
+  test('a signed-out caller is refused', async () => {
+    const { t, toolId } = await listAshasDrill()
+
+    await expect(
+      t.mutation(api.tools.update, { toolId, ...editedTool })
+    ).rejects.toThrow('Please sign in')
+  })
+
+  test('a removed tool is refused as not found', async () => {
+    const { t, asAsha, toolId } = await listAshasDrill()
+
+    await t.run((ctx) => ctx.db.patch(toolId, { removedAt: Date.now() }))
+
+    await expect(
+      asAsha.mutation(api.tools.update, { toolId, ...editedTool })
+    ).rejects.toThrow('Tool not found')
+  })
+
+  test('a tool id that no longer exists is refused as not found', async () => {
+    const { t, asAsha, toolId } = await listAshasDrill()
+
+    await t.run((ctx) => ctx.db.delete(toolId))
+
+    await expect(
+      asAsha.mutation(api.tools.update, { toolId, ...editedTool })
+    ).rejects.toThrow('Tool not found')
+  })
+
+  test.each([
+    ['an all-spaces name', { name: '   ' }, 'Name'],
+    ['a name over 60 characters', { name: 'a'.repeat(61) }, 'Name'],
+    ['an empty description', { description: '' }, 'Description'],
+    [
+      'a description over 280 characters',
+      { description: 'a'.repeat(281) },
+      'Description',
+    ],
+  ])('%s is refused and the tool is unchanged', async (_, change, field) => {
+    const { t, asAsha, toolId } = await listAshasDrill()
+
+    const error = await asAsha
+      .mutation(api.tools.update, { toolId, ...editedTool, ...change })
+      .catch((e: unknown) => e)
+
+    expect(error).toBeInstanceOf(ConvexError)
+    expect((error as ConvexError<string>).data).toMatch(new RegExp(`^${field}`))
+    expect(await t.run((ctx) => ctx.db.get(toolId))).toMatchObject(newTool)
+  })
+
+  test('a lent-out tool can be updated', async () => {
+    const { t, asAsha, toolId } = await listAshasDrill()
+    const asBen = await signUp(t, ben)
+
+    await t.run(async (ctx) => {
+      const tool = await ctx.db.get(toolId)
+      const borrower = await ctx.db
+        .query('users')
+        .withIndex('by_token', (q) => q.eq('tokenIdentifier', 'ben'))
+        .unique()
+
+      await ctx.db.insert('loans', {
+        toolId,
+        lenderId: tool!.ownerId,
+        borrowerId: borrower!._id,
+        startDate: '2020-01-01',
+        endDate: '2099-12-31',
+        status: 'approved',
+      })
+    })
+    const [drillOnBoard] = await asBen.query(api.tools.listForBoard)
+
+    expect(drillOnBoard.lentOut).toBeDefined()
+
+    await asAsha.mutation(api.tools.update, { toolId, ...editedTool })
+
+    expect(await t.run((ctx) => ctx.db.get(toolId))).toMatchObject(editedTool)
   })
 })
 

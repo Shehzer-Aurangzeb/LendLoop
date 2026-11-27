@@ -56,6 +56,7 @@ export const listMine = query({
       name: v.string(),
       category: categoryValidator,
       condition: conditionValidator,
+      description: v.string(),
     })
   ),
   handler: async (ctx) => {
@@ -68,11 +69,12 @@ export const listMine = query({
     return tools
       .filter((tool) => tool.removedAt === undefined)
       .sort((a, b) => a.name.localeCompare(b.name))
-      .map(({ _id, name, category, condition }) => ({
+      .map(({ _id, name, category, condition, description }) => ({
         _id,
         name,
         category,
         condition,
+        description,
       }))
   },
 })
@@ -156,5 +158,35 @@ export const create = mutation({
       condition,
       ownerId: user._id,
     })
+  },
+})
+
+export const update = mutation({
+  args: {
+    toolId: v.id('tools'),
+    name: v.string(),
+    description: v.string(),
+    category: categoryValidator,
+    condition: conditionValidator,
+  },
+  returns: v.null(),
+  handler: async (ctx, { toolId, category, condition, ...text }) => {
+    const user = await requireUser(ctx)
+    const tool = await ctx.db.get(toolId)
+
+    if (!tool || tool.removedAt !== undefined) {
+      throw new ConvexError('Tool not found')
+    }
+    if (tool.ownerId !== user._id) {
+      throw new ConvexError('You can only change your own tools')
+    }
+
+    await ctx.db.patch(toolId, {
+      ...trimAndCheckToolText(text),
+      category,
+      condition,
+    })
+
+    return null
   },
 })

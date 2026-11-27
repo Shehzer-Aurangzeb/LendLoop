@@ -1,20 +1,21 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { categoryLabels } from '@/components/categoryLabels'
 import CategoryTile from '@/components/CategoryTile'
 import PillRadioGroup from '@/components/PillRadioGroup'
 import SegmentedRadioGroup from '@/components/SegmentedRadioGroup'
 import { conditionLabels } from '@/components/conditionLabels'
-import { useCreateTool } from '@/components/useCreateTool'
-import type { NewTool } from '@/components/useCreateTool'
+import { useSaveTool } from '@/components/useSaveTool'
+import type { ToolFields } from '@/components/useSaveTool'
+import type { Id } from '@/convex/_generated/dataModel'
 import {
   TOOL_DESCRIPTION_MAX_LENGTH,
   TOOL_NAME_MAX_LENGTH,
 } from '@/convex/toolLimits'
 
-const emptyTool: NewTool = {
+const emptyTool: ToolFields = {
   name: '',
   description: '',
   category: 'power-tools',
@@ -26,37 +27,84 @@ const fieldLabelClass =
 const inputClass =
   'rounded-xl border border-line-strong p-3 text-[15px] font-normal text-ink'
 
-const ToolForm = () => {
-  const createTool = useCreateTool()
-  const [tool, setTool] = useState<NewTool>(emptyTool)
+const createLabels = {
+  heading: 'List a tool',
+  submit: 'Put it on the board',
+  saving: 'Listing…',
+}
+
+const editLabels = {
+  heading: 'Edit tool',
+  submit: 'Save changes',
+  saving: 'Saving…',
+}
+
+type ToolFormProps = {
+  // Undefined means the form lists a new tool.
+  toolBeingEdited?: ToolFields & { _id: Id<'tools'> }
+  onEditingDone: () => void
+}
+
+const ToolForm = ({ toolBeingEdited, onEditingDone }: ToolFormProps) => {
+  const { createTool, updateTool } = useSaveTool()
+  // Picked field by field: listMine rows will carry loan status too, which update's validator rejects.
+  const [tool, setTool] = useState<ToolFields>(() =>
+    toolBeingEdited
+      ? {
+          name: toolBeingEdited.name,
+          description: toolBeingEdited.description,
+          category: toolBeingEdited.category,
+          condition: toolBeingEdited.condition,
+        }
+      : emptyTool
+  )
   const [error, setError] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+  const headingRef = useRef<HTMLHeadingElement>(null)
+  const editingToolId = toolBeingEdited?._id
 
-  const change = (fields: Partial<NewTool>) =>
+  useEffect(() => {
+    if (editingToolId) {
+      headingRef.current?.focus()
+    }
+  }, [editingToolId])
+
+  const labels = editingToolId ? editLabels : createLabels
+
+  const change = (fields: Partial<ToolFields>) =>
     setTool((current) => ({ ...current, ...fields }))
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     setIsSaving(true)
-    const message = await createTool(tool)
+    const message = editingToolId
+      ? await updateTool({ toolId: editingToolId, ...tool })
+      : await createTool(tool)
 
     setIsSaving(false)
     setError(message)
-    if (message === null) {
+    if (message !== null) {
+      return
+    }
+    if (editingToolId) {
+      onEditingDone()
+    } else {
       setTool(emptyTool)
     }
   }
 
   return (
     <section
-      aria-labelledby="add-title"
+      aria-labelledby="tool-form-title"
       className="flex flex-[1_1_400px] flex-col gap-5 rounded-3xl border border-line bg-surface p-6"
     >
       <h2
-        id="add-title"
+        id="tool-form-title"
+        ref={headingRef}
+        tabIndex={-1}
         className="font-display text-2xl font-semibold tracking-[-0.02em]"
       >
-        List a tool
+        {labels.heading}
       </h2>
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
         {/* Upload comes later; the tile shows what neighbours will see meanwhile. */}
@@ -118,13 +166,24 @@ const ToolForm = () => {
             {error}
           </p>
         )}
-        <button
-          type="submit"
-          disabled={isSaving}
-          className="min-h-[50px] cursor-pointer rounded-full bg-accent px-5 text-base font-semibold text-white hover:bg-accent-strong disabled:cursor-wait disabled:opacity-70"
-        >
-          {isSaving ? 'Listing…' : 'Put it on the board'}
-        </button>
+        <div className="flex flex-wrap gap-3">
+          <button
+            type="submit"
+            disabled={isSaving}
+            className="min-h-[50px] flex-1 cursor-pointer rounded-full bg-accent px-5 text-base font-semibold text-white hover:bg-accent-strong disabled:cursor-wait disabled:opacity-70"
+          >
+            {isSaving ? labels.saving : labels.submit}
+          </button>
+          {editingToolId && (
+            <button
+              type="button"
+              onClick={onEditingDone}
+              className="min-h-[50px] cursor-pointer rounded-full border border-line-strong px-5 text-base font-semibold text-ink hover:bg-ground"
+            >
+              Cancel
+            </button>
+          )}
+        </div>
       </form>
     </section>
   )
