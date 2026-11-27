@@ -1,7 +1,7 @@
 import { Suspense } from 'react'
 import { Show } from '@clerk/nextjs'
+import LoadErrorBoundary from '@/components/LoadErrorBoundary'
 import PublicToolList from '@/components/PublicToolList'
-import PublicToolListErrorBoundary from '@/components/PublicToolListErrorBoundary'
 import SignInCta from '@/components/SignInCta'
 
 const BoardSection = () => (
@@ -13,9 +13,11 @@ const BoardSection = () => (
     <h2 id="board-title" className="section-heading">
       On the board right now
     </h2>
-    <PublicToolListErrorBoundary>
+    <LoadErrorBoundary
+      message="We could not load the tools right now. Please refresh the page."
+    >
       <PublicToolList />
-    </PublicToolListErrorBoundary>
+    </LoadErrorBoundary>
     {/* The band only invites signing in, so a signed-in neighbour does not see it. */}
     <Suspense>
       <Show when="signed-out">

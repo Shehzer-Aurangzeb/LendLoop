@@ -1,34 +1,39 @@
 import { Suspense } from 'react'
+import Link from 'next/link'
 import { Show, UserButton } from '@clerk/nextjs'
 import LogoMark from '@/components/LogoMark'
 import SignInCta from '@/components/SignInCta'
 
+const linkClass =
+  'min-h-11 items-center rounded-full px-3.5 text-[15px] text-ink-soft hover:text-accent-strong'
 // Below sm the two section links hide; the hero already links to the board.
-const navLinkClass =
-  'hidden min-h-11 items-center sm:inline-flex rounded-full px-3.5 text-[15px] text-ink-soft hover:text-accent-strong'
+const sectionLinkClass = `hidden sm:inline-flex ${linkClass}`
 
 const SiteHeader = () => (
   <header className="border-b border-line">
     <div className="page-container flex items-center justify-between gap-4 py-[18px]">
-      <a
-        href="#top"
+      <Link
+        href="/"
         className="flex min-h-11 items-center gap-2.5 text-ink no-underline"
       >
         <LogoMark className="size-[30px]" />
         <span className="font-display text-[22px] font-bold tracking-[-0.02em]">
           LendLoop
         </span>
-      </a>
+      </Link>
       <nav aria-label="Main" className="flex items-center gap-2">
-        <a href="#how" className={navLinkClass}>
+        <Link href="/#how" className={sectionLinkClass}>
           How it works
-        </a>
-        <a href="#board" className={navLinkClass}>
+        </Link>
+        <Link href="/#board" className={sectionLinkClass}>
           The board
-        </a>
+        </Link>
         <SignInCta label="Sign in" look="outline" />
         <Suspense>
           <Show when="signed-in">
+            <Link href="/my-tools" className={`inline-flex ${linkClass}`}>
+              My tools
+            </Link>
             <UserButton
               appearance={{
                 // Clerk's default avatar is 28px; 44px meets the touch target.

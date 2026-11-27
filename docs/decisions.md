@@ -28,6 +28,9 @@ Running list, one entry per decision. Becomes the design and security section of
 - **`requireIdentity` is separate from `requireUser`.** `users.store` runs before a users row exists, so it needs "signed in" without "has a row". All three helpers live in `convex/lib/auth.ts`, and no public function reads `ctx.auth` directly.
 - **`requireUser` and `requireAdmin` throw on the server.** The UI also waits for `users.store` before running user queries, but that is only so the screen looks right. The server check is what protects the data.
 
+- **Signed-in pages redirect with `auth.protect()` in the page, not a route matcher in `proxy.ts`.** Clerk 7 deprecates `createRouteMatcher` in favour of checks next to the resource. The redirect is still only convenience; `requireUser` in Convex is the real check.
+- **Tool text is trimmed and length-checked in the Convex mutation before the write.** The browser's `maxLength` reads the same limits from one import-free file, so client and server cannot drift and no server code ships to the browser.
+
 ## Design
 
 - **Screens follow one approved design, kept outside the repo.** It is drawn before the signed-in features so every screen shares one look; the mockup files sit in a gitignored folder and are deleted when the app is done.
@@ -50,6 +53,8 @@ Running list, one entry per decision. Becomes the design and security section of
 - **"Today" comes from `Intl.DateTimeFormat` with the app timezone; days are added in UTC.** No date library. Adding days to a calendar date in UTC can't be shifted by daylight saving.
 - **One `todayInAppTimezone()` helper reads `APP_TIMEZONE` itself.** Callers pass no timezone, so the seed and the board queries cannot disagree on what "today" is.
 - **Date tests pin the clock to an instant where UTC and the app timezone disagree.** A test that reused the code's own "today" logic would pass even when that logic is wrong.
+
+- **Category and condition are radio groups, not selects**, as the mockup draws them. Native radios in a `fieldset` with a `legend` keep them labelled and keyboard reachable.
 
 ## Data minimisation
 
