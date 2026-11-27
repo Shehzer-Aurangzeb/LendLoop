@@ -90,6 +90,7 @@ Running list, one entry per decision. Becomes the design and security section of
 - **The admin's remove (`admin.removeListing`) works even while the tool is lent out.** Refusing would leave a busy spam listing stuck forever. Setting `removedAt` already hides it and blocks new requests and approvals; the approved loan runs to its end and the lender still marks it returned. Waiting requests are declined in the same transaction.
 - **Every admin function calls `requireAdmin` first.** The header link and the `/admin` page read `users.amIAdmin`, a boolean that only shapes the UI. Because Convex queries are live, a demoted admin's open page loses its data at once.
 - **Removing a listing asks "Yes, remove / Keep it" for the admin too.** Removal cannot be undone from the app, so both remove buttons share the same confirm step.
+- **With a status filter, the admin loan list is ordered by end date, latest first; with "All" it is newest created first.** The filter reads the `by_status_and_endDate` index, which sorts by end date. A one-field status index would give true newest-first, but it is not worth a new index for an admin list.
 
 ## Data minimisation
 
@@ -112,7 +113,7 @@ Running list, one entry per decision. Becomes the design and security section of
 
 ## Known limits
 
-- **The board, My tools and the Loans page may show a stale "out" or "overdue" across midnight.** Their queries work out today on the server, and Convex reruns a query only when its data changes. A page left open overnight catches up on the next write or reload; until then "Mark as returned" can stay hidden on a loan that started that day. Reminders are unaffected: n8n asks the server fresh each run. Fix if it matters: return raw dates and compare in the browser.
+- **The board, My tools, the Loans page and the admin loan list may show a stale "out" or "overdue" across midnight.** Their queries work out today on the server, and Convex reruns a query only when its data changes. A page left open overnight catches up on the next write or reload; until then "Mark as returned" can stay hidden on a loan that started that day. Reminders are unaffected: n8n asks the server fresh each run. Fix if it matters: return raw dates and compare in the browser.
 
 ## Later, if it grows
 

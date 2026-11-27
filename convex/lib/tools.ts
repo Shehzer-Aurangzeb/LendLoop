@@ -12,3 +12,13 @@ export const requireLiveTool = async (ctx: QueryCtx, toolId: Id<'tools'>) => {
 
   return tool
 }
+
+// Removed tools are soft-deleted, so past loans still show the name.
+export const loadToolSummary = async (ctx: QueryCtx, toolId: Id<'tools'>) => {
+  const tool = await ctx.db.get(toolId)
+
+  return {
+    toolName: tool?.name ?? '',
+    toolCategory: tool?.category ?? ('other' as const),
+  }
+}

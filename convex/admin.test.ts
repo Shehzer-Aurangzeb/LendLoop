@@ -1,6 +1,7 @@
 import { convexTest } from 'convex-test'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import type { TestConvex } from 'convex-test'
+import type { FunctionReturnType } from 'convex/server'
 import { api } from '@/convex/_generated/api'
 import type { Doc, Id } from '@/convex/_generated/dataModel'
 import schema from '@/convex/schema'
@@ -240,5 +241,155 @@ describe('admin.removeListing', () => {
     await expect(
       asDana.mutation(api.admin.removeListing, { toolId })
     ).rejects.toThrow('Tool not found.')
+  })
+})
+
+const firstPage = { numItems: 20, cursor: null }
+
+type LoanStatus = Doc<'loans'>['status']
+
+// Follows continueCursor until isDone, so a filter that only holds on page one fails.
+const readEveryPage = async (
+  asAdmin: Awaited<ReturnType<typeof signUp>>,
+  status: LoanStatus
+) => {
+  const rows = []
+  let cursor: string | null = null
+  let pageCount = 0
+
+  for (;;) {
+    const result: FunctionReturnType<typeof api.admin.listLoans> =
+      await asAdmin.query(api.admin.listLoans, {
+        status,
+        paginationOpts: { numItems: 2, cursor },
+      })
+
+    rows.push(...result.page)
+    pageCount += 1
+    if (result.isDone) {
+      return { rows, pageCount }
+    }
+    cursor = result.continueCursor
+  }
+}
+
+describe('admin.listLoans', () => {
+  test('a signed-out caller is refused', async () => {
+    const { t } = await setUpAshasDrill()
+
+    await expect(
+      t.query(api.admin.listLoans, { paginationOpts: firstPage })
+    ).rejects.toThrow('Please sign in.')
+  })
+
+  test('a non-admin is refused', async () => {
+    const { asBen } = await setUpAshasDrill()
+
+    await expect(
+      asBen.query(api.admin.listLoans, { paginationOpts: firstPage })
+    ).rejects.toThrow('Admins only.')
+  })
+
+  test('with no status, returns every loan newest first with first names and no email', async () => {
+    const { t, asDana, toolId } = await setUpAshasDrill()
+
+    await t.run(async (ctx) => {
+      for (const user of await ctx.db.query('users').collect()) {
+        await ctx.db.patch(user._id, {
+          email: `${user.tokenIdentifier}@x.test`,
+        })
+      }
+    })
+    const olderId = await insertLoan(t, toolId, 'ben', {
+      startDate: '2026-11-20',
+      endDate: yesterday,
+      status: 'approved',
+    })
+    const newerId = await insertLoan(t, toolId, 'cara', {
+      startDate: '2026-12-11',
+      endDate: '2026-12-13',
+      status: 'requested',
+    })
+
+    const result = await asDana.query(api.admin.listLoans, {
+      paginationOpts: firstPage,
+    })
+
+    expect(result.isDone).toBe(true)
+    expect(result.page).toEqual([
+      {
+        _id: newerId,
+        toolName: 'Drill',
+        toolCategory: 'power-tools',
+        borrowerFirstName: 'Cara',
+        lenderFirstName: 'Asha',
+        startDate: '2026-12-11',
+        endDate: '2026-12-13',
+        status: 'requested',
+        isOverdue: false,
+      },
+      {
+        _id: olderId,
+        toolName: 'Drill',
+        toolCategory: 'power-tools',
+        borrowerFirstName: 'Ben',
+        lenderFirstName: 'Asha',
+        startDate: '2026-11-20',
+        endDate: yesterday,
+        status: 'approved',
+        isOverdue: true,
+      },
+    ])
+    expect(JSON.stringify(result)).not.toContain('@')
+  })
+
+  test('with a status, every matching loan appears exactly once across pages and no other status does', async () => {
+    const { t, asDana, toolId } = await setUpAshasDrill()
+    const approvedIds: Id<'loans'>[] = []
+
+    // Created with falling end dates, so creation order and end-date order disagree.
+    for (let day = 18; day >= 10; day -= 1) {
+      const status = day % 2 === 0 ? 'approved' : 'requested'
+      const loanId = await insertLoan(t, toolId, 'ben', {
+        startDate: `2026-12-${day}`,
+        endDate: `2026-12-${day}`,
+        status,
+      })
+
+      if (status === 'approved') {
+        approvedIds.push(loanId)
+      }
+    }
+
+    const { rows, pageCount } = await readEveryPage(asDana, 'approved')
+
+    expect(pageCount).toBeGreaterThan(1)
+    expect(rows.every((row) => row.status === 'approved')).toBe(true)
+    // The status index sorts by end date, so the filtered list is latest end date first.
+    expect(rows.map((row) => row.endDate)).toEqual(
+      rows
+        .map((row) => row.endDate)
+        .sort()
+        .reverse()
+    )
+    expect(rows.map((row) => row._id).sort()).toEqual([...approvedIds].sort())
+  })
+
+  test("a removed tool's loan still shows the tool name", async () => {
+    const { t, asDana, toolId } = await setUpAshasDrill()
+
+    await insertLoan(t, toolId, 'ben', {
+      startDate: '2026-11-20',
+      endDate: '2026-11-22',
+      status: 'returned',
+    })
+    await asDana.mutation(api.admin.removeListing, { toolId })
+
+    const { page } = await asDana.query(api.admin.listLoans, {
+      status: 'returned',
+      paginationOpts: firstPage,
+    })
+
+    expect(page.map((row) => row.toolName)).toEqual(['Drill'])
   })
 })

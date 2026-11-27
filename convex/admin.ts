@@ -1,10 +1,15 @@
+import {
+  paginationOptsValidator,
+  paginationResultValidator,
+} from 'convex/server'
 import { v } from 'convex/values'
 import { mutation, query } from '@/convex/_generated/server'
 import { requireAdmin } from '@/convex/lib/auth'
-import { declineWaitingRequests } from '@/convex/lib/loans'
-import { requireLiveTool } from '@/convex/lib/tools'
+import { todayInAppTimezone } from '@/convex/lib/dates'
+import { declineWaitingRequests, isOverdueOn } from '@/convex/lib/loans'
+import { loadToolSummary, requireLiveTool } from '@/convex/lib/tools'
 import { firstNameOf, loadUsersById } from '@/convex/lib/users'
-import { categoryValidator } from '@/convex/schema'
+import { categoryValidator, loanStatusValidator } from '@/convex/schema'
 
 // ponytail: loads every live tool; paginate like the loan list if tools pass the hundreds.
 export const listListings = query({
@@ -49,5 +54,57 @@ export const removeListing = mutation({
     await ctx.db.patch(toolId, { removedAt: Date.now() })
 
     return null
+  },
+})
+
+// With a status, rows come from the status index, so they sort by end date, not creation.
+export const listLoans = query({
+  args: {
+    status: v.optional(loanStatusValidator),
+    paginationOpts: paginationOptsValidator,
+  },
+  returns: paginationResultValidator(
+    v.object({
+      _id: v.id('loans'),
+      toolName: v.string(),
+      toolCategory: categoryValidator,
+      borrowerFirstName: v.string(),
+      lenderFirstName: v.string(),
+      startDate: v.string(),
+      endDate: v.string(),
+      status: loanStatusValidator,
+      isOverdue: v.boolean(),
+    })
+  ),
+  handler: async (ctx, { status, paginationOpts }) => {
+    await requireAdmin(ctx)
+    const loans =
+      status === undefined
+        ? ctx.db.query('loans')
+        : ctx.db
+            .query('loans')
+            .withIndex('by_status_and_endDate', (q) => q.eq('status', status))
+    const result = await loans.order('desc').paginate(paginationOpts)
+    const today = todayInAppTimezone()
+    const users = await loadUsersById(
+      ctx,
+      result.page.flatMap((loan) => [loan.borrowerId, loan.lenderId])
+    )
+
+    return {
+      ...result,
+      page: await Promise.all(
+        result.page.map(async (loan) => ({
+          _id: loan._id,
+          ...(await loadToolSummary(ctx, loan.toolId)),
+          borrowerFirstName: firstNameOf(users.get(loan.borrowerId)),
+          lenderFirstName: firstNameOf(users.get(loan.lenderId)),
+          startDate: loan.startDate,
+          endDate: loan.endDate,
+          status: loan.status,
+          isOverdue: isOverdueOn(loan, today),
+        }))
+      ),
+    }
   },
 })

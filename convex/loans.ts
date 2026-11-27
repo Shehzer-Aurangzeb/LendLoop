@@ -4,19 +4,14 @@ import type { MutationCtx, QueryCtx } from '@/convex/_generated/server'
 import type { Doc, Id } from '@/convex/_generated/dataModel'
 import { requireUser } from '@/convex/lib/auth'
 import { isCalendarDay, todayInAppTimezone } from '@/convex/lib/dates'
-import { doDayRangesOverlap, isLentOutOn } from '@/convex/lib/loans'
+import {
+  doDayRangesOverlap,
+  isLentOutOn,
+  isOverdueOn,
+} from '@/convex/lib/loans'
+import { loadToolSummary } from '@/convex/lib/tools'
 import { firstNameOf, loadUsersById } from '@/convex/lib/users'
-import schema, { categoryValidator } from '@/convex/schema'
-
-// Removed tools are soft-deleted, so past loans still show the name.
-const loadToolSummary = async (ctx: QueryCtx, toolId: Id<'tools'>) => {
-  const tool = await ctx.db.get(toolId)
-
-  return {
-    toolName: tool?.name ?? '',
-    toolCategory: tool?.category ?? ('other' as const),
-  }
-}
+import { categoryValidator, loanStatusValidator } from '@/convex/schema'
 
 type DayRange = Pick<Doc<'loans'>, 'startDate' | 'endDate'>
 
@@ -105,7 +100,7 @@ export const listMyBorrowing = query({
       lenderFirstName: v.string(),
       startDate: v.string(),
       endDate: v.string(),
-      status: schema.tables.loans.validator.fields.status,
+      status: loanStatusValidator,
       isOverdue: v.boolean(),
     })
   ),
@@ -132,7 +127,7 @@ export const listMyBorrowing = query({
           startDate,
           endDate,
           status,
-          isOverdue: status === 'approved' && endDate < today,
+          isOverdue: isOverdueOn({ status, endDate }, today),
         })
       )
     )
@@ -349,7 +344,7 @@ export const listMyLentOut = query({
         startDate: loan.startDate,
         endDate: loan.endDate,
         hasStarted: isLentOutOn(loan, today),
-        isOverdue: loan.endDate < today,
+        isOverdue: isOverdueOn(loan, today),
       }))
     )
   },

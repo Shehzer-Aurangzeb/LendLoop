@@ -5,6 +5,12 @@ import type { Doc, Id } from '@/convex/_generated/dataModel'
 export const isLentOutOn = (loan: Doc<'loans'>, today: string) =>
   loan.status === 'approved' && loan.startDate <= today
 
+// Computed, never stored, so it needs no daily job.
+export const isOverdueOn = (
+  loan: Pick<Doc<'loans'>, 'status' | 'endDate'>,
+  today: string
+) => loan.status === 'approved' && loan.endDate < today
+
 type DayRange = { startDate: string; endDate: string }
 
 // Both ends count, so ranges that share one day overlap.
