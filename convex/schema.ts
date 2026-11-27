@@ -1,6 +1,15 @@
 import { defineSchema, defineTable } from 'convex/server'
 import { v } from 'convex/values'
 
+export const categoryValidator = v.union(
+  v.literal('power-tools'),
+  v.literal('hand-tools'),
+  v.literal('garden'),
+  v.literal('kitchen'),
+  v.literal('camping'),
+  v.literal('other')
+)
+
 export default defineSchema({
   users: defineTable({
     tokenIdentifier: v.string(),
@@ -14,14 +23,7 @@ export default defineSchema({
     ownerId: v.id('users'),
     name: v.string(),
     description: v.string(),
-    category: v.union(
-      v.literal('power-tools'),
-      v.literal('hand-tools'),
-      v.literal('garden'),
-      v.literal('kitchen'),
-      v.literal('camping'),
-      v.literal('other')
-    ),
+    category: categoryValidator,
     condition: v.union(
       v.literal('like-new'),
       v.literal('good'),

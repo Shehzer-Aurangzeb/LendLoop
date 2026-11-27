@@ -51,3 +51,6 @@ issues/
 
 # Local Convex deployment data
 .convex/
+
+# Design mockups, local only, deleted when the app is done
+design/

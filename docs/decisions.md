@@ -28,6 +28,16 @@ Running list, one entry per decision. Becomes the design and security section of
 - **`requireIdentity` is separate from `requireUser`.** `users.store` runs before a users row exists, so it needs "signed in" without "has a row". All three helpers live in `convex/lib/auth.ts`, and no public function reads `ctx.auth` directly.
 - **`requireUser` and `requireAdmin` throw on the server.** The UI also waits for `users.store` before running user queries, but that is only so the screen looks right. The server check is what protects the data.
 
+## Design
+
+- **Screens follow one approved design, kept outside the repo.** It is drawn before the signed-in features so every screen shares one look; the mockup files sit in a gitignored folder and are deleted when the app is done.
+- **Colours are Tailwind theme tokens named for their role** (ground, ink, accent…). Components use token classes, never raw hex, so a colour changes in one place.
+- **One global focus ring in CSS** instead of focus classes on each control, so nothing interactive can ship without it.
+- **Each category's icon and tile tint live in one `Record<Category, …>`.** A new category is a type error until it has both.
+- **Step numbers use a darker marigold than the logo.** The design's marigold is 3.4:1 on white; text needs 4.5:1.
+- **Signed in, the landing page hides its sign-in prompts**, the hero button and the "See something you need?" band, since their only job is to invite sign-in.
+- **Loan status colours wait for the loan screens.** The landing page has no statuses to show.
+
 ## Data model
 
 - **Loan dates are `"YYYY-MM-DD"` strings.** Convex has no Date type, loans cover whole days, and strings compare correctly as text. No timezone can shift a loan by a day.
@@ -43,6 +53,12 @@ Running list, one entry per decision. Becomes the design and security section of
 ## Data minimisation
 
 - **The public list shows tool name and category only.** Strangers do not need to know which house has a drill.
+- **`tools.listPublic` maps each tool to `{ name, category }` and declares a `returns` validator for that shape.** Convex rejects the response if an extra field slips in, so a later schema change cannot leak data by accident.
+- **The public list returns no `_id`.** Nothing public addresses a single tool, so the React key is position plus name.
+- **The category union is defined once and shared by the schema and the public query.** The two cannot drift apart.
+- **The public page reads the list with `useQuery`, a live subscription.** A tool added while a visitor has the page open appears without a reload. `fetchQuery` would be a one-off snapshot.
+- **A failed public list shows a short message from a Next.js `catchError` boundary.** `useQuery` throws on failure; a function boundary needs no class and no new dependency.
+- **The category filter runs in the browser over the full list.** The list is small and already loaded, so switching is instant.
 - **n8n gets only the fields a message needs.**
 
 ## Integration
@@ -57,4 +73,5 @@ Running list, one entry per decision. Becomes the design and security section of
 
 - **Paginate the public tool list.** It reads every tool per visit, fine for tens of tools.
 - **Filter by category on the server, using the `by_category` index.** Goes together with pagination; for now the browser filters the full list.
+- **Share the button focus-ring style.** Two buttons repeat the same Tailwind focus classes; pull them into one shared class when a third button needs them.
 - **Index `removedAt`.** Today removed tools are read and dropped; an index skips them once many pile up.
