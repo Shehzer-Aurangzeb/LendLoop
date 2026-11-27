@@ -18,6 +18,21 @@ const loadToolSummary = async (ctx: QueryCtx, toolId: Id<'tools'>) => {
   }
 }
 
+type DayRange = Pick<Doc<'loans'>, 'startDate' | 'endDate'>
+
+const assertNoApprovedLoanOverlaps = (
+  loans: Doc<'loans'>[],
+  days: DayRange
+) => {
+  if (
+    loans.some(
+      (loan) => loan.status === 'approved' && doDayRangesOverlap(loan, days)
+    )
+  ) {
+    throw new ConvexError('The tool is already lent on some of these days.')
+  }
+}
+
 // toolId comes from the tool page URL, so a malformed one is "not found", as in getForToolPage.
 export const request = mutation({
   args: { toolId: v.string(), startDate: v.string(), endDate: v.string() },
@@ -52,13 +67,10 @@ export const request = mutation({
     const isMine = (loan: Doc<'loans'>) => loan.borrowerId === user._id
 
     // The caller's own approved loan is left to the next check, which names it better.
-    if (
-      overlappingLoans.some(
-        (loan) => loan.status === 'approved' && !isMine(loan)
-      )
-    ) {
-      throw new ConvexError('The tool is already lent on some of these days.')
-    }
+    assertNoApprovedLoanOverlaps(
+      overlappingLoans.filter((loan) => !isMine(loan)),
+      { startDate, endDate }
+    )
     if (
       overlappingLoans.some(
         (loan) =>
@@ -127,7 +139,7 @@ export const listMyBorrowing = query({
   },
 })
 
-const loadLoanForCaller = async (ctx: MutationCtx, loanId: Id<'loans'>) => {
+const requireUserAndLoan = async (ctx: MutationCtx, loanId: Id<'loans'>) => {
   const user = await requireUser(ctx)
   const loan = await ctx.db.get(loanId)
 
@@ -151,7 +163,7 @@ const loadRequestForItsLender = async (
   ctx: MutationCtx,
   loanId: Id<'loans'>
 ) => {
-  const { user, loan } = await loadLoanForCaller(ctx, loanId)
+  const { user, loan } = await requireUserAndLoan(ctx, loanId)
 
   if (loan.lenderId !== user._id) {
     throw new ConvexError('Only the lender can answer this request.')
@@ -166,7 +178,11 @@ export const approve = mutation({
   returns: v.null(),
   handler: async (ctx, { loanId }) => {
     const loan = await loadRequestForItsLender(ctx, loanId)
+    const tool = await ctx.db.get(loan.toolId)
 
+    if (!tool || tool.removedAt !== undefined) {
+      throw new ConvexError('Tool not found.')
+    }
     if (loan.startDate < todayInAppTimezone()) {
       throw new ConvexError(
         'The first day has passed. Decline this request instead.'
@@ -179,14 +195,7 @@ export const approve = mutation({
       .withIndex('by_tool', (q) => q.eq('toolId', loan.toolId))
       .collect()
 
-    if (
-      toolLoans.some(
-        (other) =>
-          other.status === 'approved' && doDayRangesOverlap(other, loan)
-      )
-    ) {
-      throw new ConvexError('The tool is already lent on some of these days.')
-    }
+    assertNoApprovedLoanOverlaps(toolLoans, loan)
 
     await ctx.db.patch(loan._id, { status: 'approved' })
     // F6: schedule the approved notification here with ctx.scheduler.runAfter(0, ...).
@@ -212,7 +221,7 @@ export const cancel = mutation({
   args: { loanId: v.id('loans') },
   returns: v.null(),
   handler: async (ctx, { loanId }) => {
-    const { user, loan } = await loadLoanForCaller(ctx, loanId)
+    const { user, loan } = await requireUserAndLoan(ctx, loanId)
 
     if (loan.borrowerId !== user._id) {
       throw new ConvexError('Only the borrower can cancel this request.')
@@ -230,7 +239,7 @@ export const markReturned = mutation({
   args: { loanId: v.id('loans') },
   returns: v.null(),
   handler: async (ctx, { loanId }) => {
-    const { user, loan } = await loadLoanForCaller(ctx, loanId)
+    const { user, loan } = await requireUserAndLoan(ctx, loanId)
 
     if (loan.lenderId !== user._id) {
       throw new ConvexError('Only the lender can mark this loan returned.')
@@ -249,13 +258,17 @@ export const markReturned = mutation({
   },
 })
 
-const loadRequestsWaitingFor = async (ctx: QueryCtx, lenderId: Id<'users'>) =>
+const loadLoansLentByWithStatus = async (
+  ctx: QueryCtx,
+  lenderId: Id<'users'>,
+  status: Doc<'loans'>['status']
+) =>
   (
     await ctx.db
       .query('loans')
       .withIndex('by_lender', (q) => q.eq('lenderId', lenderId))
       .collect()
-  ).filter((loan) => loan.status === 'requested')
+  ).filter((loan) => loan.status === status)
 
 export const listWaitingForMe = query({
   args: {},
@@ -271,9 +284,9 @@ export const listWaitingForMe = query({
   ),
   handler: async (ctx) => {
     const user = await requireUser(ctx)
-    const loans = (await loadRequestsWaitingFor(ctx, user._id)).sort((a, b) =>
-      a.startDate.localeCompare(b.startDate)
-    )
+    const loans = (
+      await loadLoansLentByWithStatus(ctx, user._id, 'requested')
+    ).sort((a, b) => a.startDate.localeCompare(b.startDate))
     const borrowers = await loadUsersById(
       ctx,
       loans.map((loan) => loan.borrowerId)
@@ -297,7 +310,9 @@ export const countWaitingForMe = query({
   handler: async (ctx) => {
     const user = await requireUser(ctx)
 
-    return (await loadRequestsWaitingFor(ctx, user._id)).length
+    const waiting = await loadLoansLentByWithStatus(ctx, user._id, 'requested')
+
+    return waiting.length
   },
 })
 
@@ -319,13 +334,8 @@ export const listMyLentOut = query({
     const user = await requireUser(ctx)
     const today = todayInAppTimezone()
     const loans = (
-      await ctx.db
-        .query('loans')
-        .withIndex('by_lender', (q) => q.eq('lenderId', user._id))
-        .collect()
-    )
-      .filter((loan) => loan.status === 'approved')
-      .sort((a, b) => a.startDate.localeCompare(b.startDate))
+      await loadLoansLentByWithStatus(ctx, user._id, 'approved')
+    ).sort((a, b) => a.startDate.localeCompare(b.startDate))
     const borrowers = await loadUsersById(
       ctx,
       loans.map((loan) => loan.borrowerId)

@@ -40,6 +40,7 @@ const LentOutLoanList = ({ loans }: { loans: LentOutLoan[] }) => {
               label="Mark as returned"
               screenReaderDetail={`for ${loan.toolName}`}
               change={() => markReturned(loan._id)}
+              rowAfterChange="leaves"
             />
           )}
         </LoanRow>

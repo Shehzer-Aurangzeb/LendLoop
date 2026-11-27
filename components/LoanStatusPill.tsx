@@ -1,7 +1,7 @@
 import type { Doc } from '@/convex/_generated/dataModel'
 
 // Out and overdue are not stored; both are approved loans, started or past their last day.
-export type LoanPillStatus = Doc<'loans'>['status'] | 'out' | 'overdue'
+type LoanPillStatus = Doc<'loans'>['status'] | 'out' | 'overdue'
 
 // Cancelled has no colour in the mockup, so it shares declined's grey.
 const pills: Record<LoanPillStatus, { label: string; className: string }> = {

@@ -5,11 +5,12 @@ import { countDaysInRange } from '@/components/countDaysInRange'
 import { formatDateRange } from '@/components/formatDateRange'
 import { formatDayCount } from '@/components/formatDayCount'
 import InitialAvatar from '@/components/InitialAvatar'
+import InlineError from '@/components/InlineError'
 import { useLoanChange } from '@/components/useLoanChange'
 import { useRequestAnswers } from '@/components/useRequestAnswers'
 import type { api } from '@/convex/_generated/api'
 
-export type WaitingRequest = FunctionReturnType<
+type WaitingRequest = FunctionReturnType<
   typeof api.loans.listWaitingForMe
 >[number]
 
@@ -18,7 +19,7 @@ const buttonClass =
 
 const WaitingRequestCard = ({ request }: { request: WaitingRequest }) => {
   const { approveRequest, declineRequest } = useRequestAnswers()
-  const { isBusy, error, run } = useLoanChange()
+  const { isBusy, error, run } = useLoanChange('leaves')
   const dayCount = countDaysInRange(request.startDate, request.endDate)
 
   return (
@@ -62,11 +63,7 @@ const WaitingRequestCard = ({ request }: { request: WaitingRequest }) => {
           Decline
         </button>
       </div>
-      {error && (
-        <p role="alert" className="text-sm font-medium text-red-700">
-          {error}
-        </p>
-      )}
+      <InlineError message={error} />
     </article>
   )
 }

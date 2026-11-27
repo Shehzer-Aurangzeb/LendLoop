@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { countDaysInRange } from '@/components/countDaysInRange'
 import { formatDayCount } from '@/components/formatDayCount'
 import { formatDateRange } from '@/components/formatDateRange'
+import InlineError from '@/components/InlineError'
 import { useBorrowRequest } from '@/components/useBorrowRequest'
 
 type BorrowRequestFormProps = {
@@ -101,11 +102,7 @@ const BorrowRequestForm = ({
       >
         {isSending ? 'Sending…' : `Send request to ${lenderFirstName}`}
       </button>
-      {error && (
-        <p role="alert" className="text-sm font-medium text-red-700">
-          {error}
-        </p>
-      )}
+      <InlineError message={error} />
       {isSent && (
         <p
           role="status"
@@ -121,8 +118,7 @@ const BorrowRequestForm = ({
         </p>
       )}
       <p className="text-center text-[13px] leading-normal text-ink-muted">
-        {lenderFirstName} gets a note and decides. You’ll see the answer under
-        Loans.
+        {lenderFirstName} decides. You’ll see the answer under Loans.
       </p>
     </form>
   )

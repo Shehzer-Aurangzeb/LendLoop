@@ -41,6 +41,7 @@ const BorrowedLoanList = ({ loans }: { loans: BorrowedLoan[] }) => {
               label="Cancel"
               screenReaderDetail={`your request for ${loan.toolName}`}
               change={() => cancelRequest(loan._id)}
+              rowAfterChange="stays"
             />
           )}
         </LoanRow>

@@ -84,6 +84,8 @@ Running list, one entry per decision. Becomes the design and security section of
 - **Every loan change allow-lists both the caller and the status** (lender and `requested` for approve and decline). "Not the borrower" or "not cancelled" would let a third neighbour or an old declined loan through.
 - **The header Loans badge is darker than the mockup's marigold.** White on the mockup colour is about 3:1; the darker shade passes AA for small text.
 - **"You've lent out" shows a pill (Approved, Out now, Overdue) but no "back in 2 days" hint.** The hint needs today in the app timezone: worked out in the browser it can be a day off, and on the server it goes stale overnight. The pill carries the state.
+- **The borrower's "You're borrowing" list also flags an overdue loan.** The borrower is the one who must hand the tool back, and the mockup shows the pill there too. It uses the same overdue rule as the lender's list.
+- **`approve` refuses a loan whose tool was removed.** Removing a tool already declines its waiting requests, but the check keeps F5's admin removal from reopening that gap.
 - **Mark as returned needs an approved loan that has started.** A loan that never began cannot be closed as returned; the lender declines or waits.
 
 ## Data minimisation

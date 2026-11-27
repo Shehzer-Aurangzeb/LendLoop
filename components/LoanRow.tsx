@@ -21,7 +21,11 @@ const LoanRow = ({
   endDate,
   children,
 }: LoanRowProps) => (
-  <li className="flex flex-wrap items-center gap-4 px-5 py-[18px]">
+  // tabIndex -1: focus lands here when a row's button goes but the row stays.
+  <li
+    tabIndex={-1}
+    className="flex flex-wrap items-center gap-4 px-5 py-[18px]"
+  >
     <LoanToolIcon category={toolCategory} />
     <div className="flex min-w-0 flex-[1_1_220px] flex-col gap-[3px]">
       <span className="text-base font-semibold">

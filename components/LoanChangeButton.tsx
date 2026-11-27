@@ -1,20 +1,23 @@
 'use client'
 
+import InlineError from '@/components/InlineError'
 import { useLoanChange } from '@/components/useLoanChange'
+import type { RowAfterChange } from '@/components/useLoanChange'
 
 type LoanChangeButtonProps = {
   label: string
   screenReaderDetail: string
   change: () => Promise<string | null>
+  rowAfterChange: RowAfterChange
 }
 
-// For a row's button whose row leaves its section once the change works.
 const LoanChangeButton = ({
   label,
   screenReaderDetail,
   change,
+  rowAfterChange,
 }: LoanChangeButtonProps) => {
-  const { isBusy, error, run } = useLoanChange()
+  const { isBusy, error, run } = useLoanChange(rowAfterChange)
 
   return (
     <div className="flex flex-col items-end gap-1">
@@ -28,11 +31,7 @@ const LoanChangeButton = ({
         {label}
         <span className="sr-only"> {screenReaderDetail}</span>
       </button>
-      {error && (
-        <p role="alert" className="text-sm font-medium text-red-700">
-          {error}
-        </p>
-      )}
+      <InlineError message={error} />
     </div>
   )
 }

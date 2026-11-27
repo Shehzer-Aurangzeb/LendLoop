@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { categoryLabels } from '@/components/categoryLabels'
+import InlineError from '@/components/InlineError'
 import PhotoPlaceholder from '@/components/PhotoPlaceholder'
 import RadioGroup from '@/components/RadioGroup'
 import RemoveToolButton from '@/components/RemoveToolButton'
@@ -162,11 +163,7 @@ const ToolForm = ({
             Only signed-in neighbours see this. Skip your address.
           </span>
         </label>
-        {error && (
-          <p role="alert" className="text-sm font-medium text-red-700">
-            {error}
-          </p>
-        )}
+        <InlineError message={error} />
         <div className="flex flex-wrap gap-3">
           <button
             type="submit"

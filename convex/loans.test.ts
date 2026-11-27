@@ -601,6 +601,21 @@ describe('loans.approve', () => {
     expect(await storedStatus(t, loanId)).toBe('requested')
   })
 
+  test('a request for a removed tool is refused', async () => {
+    const { t, asAsha, toolId } = await setUpAshasDrill()
+    const loanId = await insertLoan(t, toolId, 'ben', {
+      ...bensRequest,
+      status: 'requested',
+    })
+
+    await t.run((ctx) => ctx.db.patch(toolId, { removedAt: Date.now() }))
+
+    await expect(
+      asAsha.mutation(api.loans.approve, { loanId })
+    ).rejects.toThrow('Tool not found.')
+    expect(await storedStatus(t, loanId)).toBe('requested')
+  })
+
   test('an approved loan on another tool does not clash', async () => {
     const { t, asAsha, toolId } = await setUpAshasDrill()
     const ladderId = await asAsha.mutation(api.tools.create, {
