@@ -37,6 +37,8 @@ Running list, one entry per decision. Becomes the design and security section of
 - **Loans copy `lenderId` from the tool.** A tool's owner never changes, so "Incoming requests" reads one index instead of joining through tools.
 - **One `loanActivity` table with a `kind` field** for request notifications and overdue reminders. One place to read a loan's recent automation.
 - **The seed is an internal mutation that does nothing if data exists**, with dates set from the day it runs. A reviewer sees every status without creating anything.
+- **"Today" comes from `Intl.DateTimeFormat` with the app timezone; days are added in UTC.** No date library. Adding days to a calendar date in UTC can't be shifted by daylight saving.
+- **Date tests pin the clock to an instant where UTC and the app timezone disagree.** A test that reused the code's own "today" logic would pass even when that logic is wrong.
 
 ## Data minimisation
 
