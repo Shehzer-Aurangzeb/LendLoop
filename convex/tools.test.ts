@@ -758,3 +758,112 @@ describe('tools.removeOwn', () => {
     ).rejects.toThrow('Tool not found.')
   })
 })
+
+describe('tools.getForToolPage', () => {
+  test('a signed-out caller is refused', async () => {
+    const { t, toolId } = await listAshasDrill()
+
+    await expect(
+      t.query(api.tools.getForToolPage, { toolId })
+    ).rejects.toThrow('Please sign in.')
+  })
+
+  test('gives the tool with exactly the declared keys and loan dates with no names', async () => {
+    const t = convexTest(schema, modules)
+    const asAsha = await signUp(t, asha)
+    const asBen = await signUp(t, ben)
+    const toolId = await asAsha.mutation(api.tools.create, newTool)
+
+    await insertLoansFromBen(t, toolId, [
+      { startDate: '2026-12-11', endDate: '2026-12-13', status: 'approved' },
+    ])
+
+    const tool = await asBen.query(api.tools.getForToolPage, { toolId })
+
+    expect(Object.keys(tool!).sort()).toEqual([
+      'approvedLoans',
+      'category',
+      'condition',
+      'description',
+      'isLenderTrusted',
+      'isMine',
+      'lenderFirstName',
+      'name',
+    ])
+    expect(Object.keys(tool!.approvedLoans[0]).sort()).toEqual([
+      'endDate',
+      'startDate',
+    ])
+    expect(tool).toEqual({
+      ...newTool,
+      lenderFirstName: 'Asha',
+      isLenderTrusted: false,
+      isMine: false,
+      approvedLoans: [{ startDate: '2026-12-11', endDate: '2026-12-13' }],
+    })
+  })
+
+  test('lists only approved loans, by first day, started or not', async () => {
+    const t = convexTest(schema, modules)
+    const asAsha = await signUp(t, asha)
+    const asBen = await signUp(t, ben)
+    const toolId = await asAsha.mutation(api.tools.create, newTool)
+
+    await insertLoansFromBen(t, toolId, [
+      { startDate: '2026-12-20', endDate: '2026-12-21', status: 'approved' },
+      { startDate: '2026-12-01', endDate: '2026-12-02', status: 'requested' },
+      { startDate: '2026-12-03', endDate: '2026-12-04', status: 'declined' },
+      { startDate: '2026-12-05', endDate: '2026-12-06', status: 'cancelled' },
+      { startDate: '2026-11-01', endDate: '2026-11-02', status: 'returned' },
+      { startDate: '2026-11-10', endDate: '2026-11-30', status: 'approved' },
+    ])
+
+    const tool = await asBen.query(api.tools.getForToolPage, { toolId })
+
+    expect(tool!.approvedLoans).toEqual([
+      { startDate: '2026-11-10', endDate: '2026-11-30' },
+      { startDate: '2026-12-20', endDate: '2026-12-21' },
+    ])
+  })
+
+  test('isMine is true for the lender and false for another neighbour', async () => {
+    const t = convexTest(schema, modules)
+    const asAsha = await signUp(t, asha)
+    const asBen = await signUp(t, ben)
+    const toolId = await asAsha.mutation(api.tools.create, newTool)
+
+    const forAsha = await asAsha.query(api.tools.getForToolPage, { toolId })
+    const forBen = await asBen.query(api.tools.getForToolPage, { toolId })
+
+    expect(forAsha!.isMine).toBe(true)
+    expect(forBen!.isMine).toBe(false)
+  })
+
+  test('a removed tool returns null', async () => {
+    const { asAsha, toolId } = await listAshasDrill()
+
+    await asAsha.mutation(api.tools.removeOwn, { toolId })
+
+    expect(
+      await asAsha.query(api.tools.getForToolPage, { toolId })
+    ).toBeNull()
+  })
+
+  test('a missing tool returns null', async () => {
+    const { t, asAsha, toolId } = await listAshasDrill()
+
+    await t.run((ctx) => ctx.db.delete(toolId))
+
+    expect(
+      await asAsha.query(api.tools.getForToolPage, { toolId })
+    ).toBeNull()
+  })
+
+  test('a malformed id from the URL returns null, not an error', async () => {
+    const { asAsha } = await listAshasDrill()
+
+    expect(
+      await asAsha.query(api.tools.getForToolPage, { toolId: 'not-an-id' })
+    ).toBeNull()
+  })
+})

@@ -201,6 +201,56 @@ export const listForBoard = query({
   },
 })
 
+// toolId comes from the URL, so a malformed one is "not found", not a validator error.
+export const getForToolPage = query({
+  args: { toolId: v.string() },
+  returns: v.union(
+    v.null(),
+    v.object({
+      name: v.string(),
+      description: v.string(),
+      category: categoryValidator,
+      condition: conditionValidator,
+      lenderFirstName: v.string(),
+      isLenderTrusted: v.boolean(),
+      isMine: v.boolean(),
+      approvedLoans: v.array(
+        v.object({ startDate: v.string(), endDate: v.string() })
+      ),
+    })
+  ),
+  handler: async (ctx, args) => {
+    const user = await requireUser(ctx)
+    const toolId = ctx.db.normalizeId('tools', args.toolId)
+    const tool = toolId && (await ctx.db.get(toolId))
+
+    if (!tool || tool.removedAt !== undefined) {
+      return null
+    }
+
+    const loans = await ctx.db
+      .query('loans')
+      .withIndex('by_tool', (q) => q.eq('toolId', tool._id))
+      .collect()
+    const lender = await ctx.db.get(tool.ownerId)
+    const { name, description, category, condition } = tool
+
+    return {
+      name,
+      description,
+      category,
+      condition,
+      lenderFirstName: firstNameOf(lender),
+      isLenderTrusted: lender?.isTrustedLender ?? false,
+      isMine: tool.ownerId === user._id,
+      approvedLoans: loans
+        .filter((loan) => loan.status === 'approved')
+        .sort((a, b) => a.startDate.localeCompare(b.startDate))
+        .map(({ startDate, endDate }) => ({ startDate, endDate })),
+    }
+  },
+})
+
 export const create = mutation({
   args: {
     name: v.string(),
