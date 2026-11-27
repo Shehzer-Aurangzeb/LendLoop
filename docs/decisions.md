@@ -75,6 +75,19 @@ Running list, one entry per decision. Becomes the design and security section of
 - **An overdue tool reads "due back <day>" on both screens** ("Out, due back…" on the board, "With Liam, due back…" on My tools), so "until" never names a day that has passed.
 - **Timezone tests run in both directions**: an app timezone behind UTC (Toronto) and one ahead of it (Auckland).
 
+- **The tool page query takes the URL id as a string and checks it with `normalizeId`.** A broken or old link shows "Tool not found" instead of the generic load error; an id from another table also comes back `null`.
+- **The tool page lists approved loans as dates only, overdue ones included.** A borrower can pick free days without learning who has the tool; an overdue tool really is still out.
+- **The request form's `min` date uses the browser's today; the server's app-timezone today is the real check.** Near midnight the two can differ by a day, and the server's refusal message covers it. Passing the server's today down would go stale overnight anyway.
+- **"Already lent" sits above the date inputs on the tool page.** The borrower sees the taken days before picking, and the form needs no slot for it.
+- **A borrower whose own request overlaps their approved or waiting loan hears "You already asked for some of these days."** Their own loans are left out of the "already lent" clash so the message names the real reason.
+- **Approve re-reads the tool's approved loans and refuses a clash; other overlapping requests stay waiting.** Convex mutations are serializable, so two approvals racing for the same days cannot both commit: the second re-runs and sees the first. The test runs the two approvals one after the other; the real race rests on that Convex guarantee.
+- **Every loan change allow-lists both the caller and the status** (lender and `requested` for approve and decline). "Not the borrower" or "not cancelled" would let a third neighbour or an old declined loan through.
+- **The header Loans badge is darker than the mockup's marigold.** White on the mockup colour is about 3:1; the darker shade passes AA for small text.
+- **"You've lent out" shows a pill (Approved, Out now, Overdue) but no "back in 2 days" hint.** The hint needs today in the app timezone: worked out in the browser it can be a day off, and on the server it goes stale overnight. The pill carries the state.
+- **The borrower's "You're borrowing" list also flags an overdue loan.** The borrower is the one who must hand the tool back, and the mockup shows the pill there too. It uses the same overdue rule as the lender's list.
+- **`approve` refuses a loan whose tool was removed.** Removing a tool already declines its waiting requests, but the check keeps F5's admin removal from reopening that gap.
+- **Mark as returned needs an approved loan that has started.** A loan that never began cannot be closed as returned; the lender declines or waits.
+
 ## Data minimisation
 
 - **The public list shows tool name and category only.** Strangers do not need to know which house has a drill.
@@ -96,7 +109,7 @@ Running list, one entry per decision. Becomes the design and security section of
 
 ## Known limits
 
-- **The board and My tools may show a stale "out" or "overdue" across midnight.** Their queries work out today on the server, and Convex reruns a query only when its data changes. A page left open overnight catches up on the next write or reload. Reminders are unaffected: n8n asks the server fresh each run. Fix if it matters: return raw dates and compare in the browser.
+- **The board, My tools and the Loans page may show a stale "out" or "overdue" across midnight.** Their queries work out today on the server, and Convex reruns a query only when its data changes. A page left open overnight catches up on the next write or reload; until then "Mark as returned" can stay hidden on a loan that started that day. Reminders are unaffected: n8n asks the server fresh each run. Fix if it matters: return raw dates and compare in the browser.
 
 ## Later, if it grows
 
@@ -104,3 +117,4 @@ Running list, one entry per decision. Becomes the design and security section of
 - **Filter by category on the server, using the `by_category` index.** Goes together with pagination; for now the browser filters the full list.
 - **Share the button focus-ring style.** Two buttons repeat the same Tailwind focus classes; pull them into one shared class when a third button needs them.
 - **Index `removedAt`.** Today removed tools are read and dropped; an index skips them once many pile up.
+- **Cap waiting requests per borrower per tool.** F4 already refuses a request that overlaps the borrower's own waiting or approved loan on that tool, so spam needs deliberate non-overlapping ranges. If it happens, refuse a fourth waiting request from the same borrower for the same tool (one count read inside the request mutation).

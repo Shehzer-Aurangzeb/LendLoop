@@ -24,6 +24,15 @@
   --color-tint-camping: #dfe8ee;
   --color-tint-other: #ece9e2;
 
+  /* Loan status pills; approved uses accent-soft and accent. */
+  --color-status-requested: #fbf1dc;
+  --color-status-requested-ink: #7a4e0e;
+  --color-status-overdue: #fbe9e2;
+  --color-status-overdue-ink: #9a3e2a;
+  --color-status-returned: #e7eef7;
+  --color-status-returned-ink: #2f5a8a;
+  --color-status-closed: #eeebe4;
+
   --shadow-lift: 0 12px 30px -12px rgb(30 38 33 / 0.45);
 }
 

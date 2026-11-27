@@ -28,8 +28,8 @@ Rules the `pr-reviewer` agent checks every diff against. Concise rule plus a one
 
 ## Loans
 
-- **Date ranges are validated on the server: end after start, start not in the past, no overlap with an approved loan for the same tool.** Why: the date picker is not the only client.
-- **Status changes follow the allowed transitions only** (requested to approved or declined; approved to returned). Why: stops returning a declined loan or approving twice.
+- **Date ranges are validated on the server: real calendar days, end on or after start, start not before today in the app timezone, no overlap with an approved loan for the same tool.** Why: the date picker is not the only client.
+- **Status changes follow the allowed transitions only** (requested to approved or declined by the lender; requested to cancelled by the borrower; approved to returned by the lender). Each change allow-lists both the caller and the current status. Why: stops returning a declined loan, approving twice, or a third neighbour changing a loan.
 - **A user cannot request their own tool.** Why: obvious rule, easy to forget on the server.
 - **A query that uses "today" or `Date.now()` does not count on rerunning when the date changes.** It returns raw dates for the browser to compare, or the staleness is written in `docs/decisions.md`. Why: Convex reruns a cached query only when the data it read changes, not when the clock does.
 
@@ -38,3 +38,5 @@ Rules the `pr-reviewer` agent checks every diff against. Concise rule plus a one
 - **Follow `CLAUDE.md`: My coding style, Frontend work, Comments.**
 - **No new dependency without a one-line reason.**
 - **A new required Convex env var goes into `.env.example` and the README setup steps in the same PR.** Why: otherwise a fresh clone fails on a variable nobody mentioned.
+- **A live query rendered outside a page's `LoadErrorBoundary` (header, layout) has its own fallback.** Why: Convex `useQuery` throws during render, and with no boundary above it the whole layout breaks.
+- **A query that runs on every page filters by an index, not with `.filter` after `.collect()`.** Why: it re-reads every matching row on every page view and reruns when any of them changes.
