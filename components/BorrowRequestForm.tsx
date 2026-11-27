@@ -44,6 +44,9 @@ const BorrowRequestForm = ({
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    if (isSending) {
+      return
+    }
     setIsSending(true)
     setIsSent(false)
     const message = await sendRequest({ toolId, startDate, endDate })
@@ -95,10 +98,11 @@ const BorrowRequestForm = ({
           </span>
         </p>
       )}
+      {/* aria-disabled, not disabled: focus stays on the button if the server refuses. */}
       <button
         type="submit"
-        disabled={isSending}
-        className="min-h-[50px] cursor-pointer rounded-full bg-accent px-5 text-base font-semibold text-white hover:bg-accent-strong disabled:cursor-wait disabled:opacity-70"
+        aria-disabled={isSending}
+        className="min-h-[50px] cursor-pointer rounded-full bg-accent px-5 text-base font-semibold text-white hover:bg-accent-strong aria-disabled:cursor-wait aria-disabled:opacity-70"
       >
         {isSending ? 'Sending…' : `Send request to ${lenderFirstName}`}
       </button>

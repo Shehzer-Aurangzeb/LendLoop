@@ -122,7 +122,7 @@ export const listMyBorrowing = query({
       loans.map((loan) => loan.lenderId)
     )
 
-    // ponytail: one get per loan; a neighbour has a few dozen loans at most.
+    // One get per loan; a neighbour has a few dozen loans at most.
     return await Promise.all(
       loans.map(
         async ({ _id, toolId, lenderId, startDate, endDate, status }) => ({
@@ -258,17 +258,17 @@ export const markReturned = mutation({
   },
 })
 
-const loadLoansLentByWithStatus = async (
+const loadLoansLentByWithStatus = (
   ctx: QueryCtx,
   lenderId: Id<'users'>,
   status: Doc<'loans'>['status']
 ) =>
-  (
-    await ctx.db
-      .query('loans')
-      .withIndex('by_lender', (q) => q.eq('lenderId', lenderId))
-      .collect()
-  ).filter((loan) => loan.status === status)
+  ctx.db
+    .query('loans')
+    .withIndex('by_lender_and_status', (q) =>
+      q.eq('lenderId', lenderId).eq('status', status)
+    )
+    .collect()
 
 export const listWaitingForMe = query({
   args: {},

@@ -55,7 +55,8 @@ export default defineSchema({
   })
     .index('by_tool', ['toolId'])
     .index('by_borrower', ['borrowerId'])
-    .index('by_lender', ['lenderId'])
+    // Status second: the header badge reads one lender's waiting requests on every page.
+    .index('by_lender_and_status', ['lenderId', 'status'])
     .index('by_status_and_endDate', ['status', 'endDate']),
 
   loanActivity: defineTable({

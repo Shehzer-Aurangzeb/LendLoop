@@ -14,7 +14,7 @@ export const formatDateRange = (startDate: string, endDate: string) => {
   }
 
   const isSameMonth = startDate.slice(0, 7) === endDate.slice(0, 7)
-  // ponytail: no year shown; add it if loans ever cross into a year people misread.
+  // No year shown; add it if loans ever cross into a year people misread.
   const start = isSameMonth
     ? weekdayAndDayFormat.format(new Date(`${startDate}T00:00:00Z`))
     : formatShortDate(startDate)
