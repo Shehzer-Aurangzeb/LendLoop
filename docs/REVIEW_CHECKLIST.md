@@ -24,6 +24,8 @@ Rules the `pr-reviewer` agent checks every diff against. Concise rule plus a one
 - **Signed requests carry a timestamp, and old ones are rejected.** Why: stops replay of a captured request.
 - **Write-backs are idempotent on `loanId + date`.** Why: n8n retries must never create a second reminder record.
 - **A duplicate check matches the full idempotency key, including the activity kind.** Why: a partly matched key lets one kind of row block another.
+- **A dedupe step marks a key handled only after the work succeeds, or the gap is written in `docs/decisions.md`; every reject check runs before it.** Why: a failure after the mark turns every retry into a silent success.
+- **Every outbound `fetch` in an action has a timeout.** Why: a hung server otherwise holds the action until Convex kills it, skipping the retry and the error log.
 - **No secret appears in code, in `.env.example` values, or in exported workflow JSON.** Why: the repo is public.
 
 ## Loans

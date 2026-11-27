@@ -1,5 +1,6 @@
 import type { MutationCtx } from '@/convex/_generated/server'
 import type { Doc, Id } from '@/convex/_generated/dataModel'
+import { scheduleRequestNotification } from '@/convex/lib/notifications'
 
 // Lent out: approved and started. The end date only decides overdue, never "out".
 export const isLentOutOn = (loan: Doc<'loans'>, today: string) =>
@@ -18,7 +19,7 @@ export const doDayRangesOverlap = (a: DayRange, b: DayRange) =>
   a.startDate <= b.endDate && b.startDate <= a.endDate
 
 // A removed tool can never be lent, so its waiting requests are answered for the lender.
-export const declineWaitingRequests = async (
+export const declineAndNotifyWaitingRequests = async (
   ctx: MutationCtx,
   toolId: Id<'tools'>
 ) => {
@@ -31,5 +32,6 @@ export const declineWaitingRequests = async (
 
   for (const loan of waiting) {
     await ctx.db.patch(loan._id, { status: 'declined' })
+    await scheduleRequestNotification(ctx, loan._id, 'declined')
   }
 }

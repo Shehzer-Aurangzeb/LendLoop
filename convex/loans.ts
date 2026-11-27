@@ -9,6 +9,7 @@ import {
   isLentOutOn,
   isOverdueOn,
 } from '@/convex/lib/loans'
+import { scheduleRequestNotification } from '@/convex/lib/notifications'
 import { loadToolSummary, requireLiveTool } from '@/convex/lib/tools'
 import { firstNameOf, loadUsersById } from '@/convex/lib/users'
 import { categoryValidator, loanStatusValidator } from '@/convex/schema'
@@ -76,7 +77,7 @@ export const request = mutation({
       throw new ConvexError('You already asked for some of these days.')
     }
 
-    await ctx.db.insert('loans', {
+    const loanId = await ctx.db.insert('loans', {
       toolId: tool._id,
       borrowerId: user._id,
       lenderId: tool.ownerId,
@@ -84,7 +85,8 @@ export const request = mutation({
       endDate,
       status: 'requested',
     })
-    // F6: schedule the request notification here with ctx.scheduler.runAfter(0, ...).
+
+    await scheduleRequestNotification(ctx, loanId, 'requested')
 
     return null
   },
@@ -191,7 +193,7 @@ export const approve = mutation({
     assertNoApprovedLoanOverlaps(toolLoans, loan)
 
     await ctx.db.patch(loan._id, { status: 'approved' })
-    // F6: schedule the approved notification here with ctx.scheduler.runAfter(0, ...).
+    await scheduleRequestNotification(ctx, loan._id, 'approved')
 
     return null
   },
@@ -204,7 +206,7 @@ export const decline = mutation({
     const loan = await loadRequestForItsLender(ctx, loanId)
 
     await ctx.db.patch(loan._id, { status: 'declined' })
-    // F6: schedule the declined notification here with ctx.scheduler.runAfter(0, ...).
+    await scheduleRequestNotification(ctx, loan._id, 'declined')
 
     return null
   },
@@ -222,7 +224,7 @@ export const cancel = mutation({
     assertStillRequested(loan)
 
     await ctx.db.patch(loan._id, { status: 'cancelled' })
-    // F6: schedule the cancelled notification here with ctx.scheduler.runAfter(0, ...).
+    await scheduleRequestNotification(ctx, loan._id, 'cancelled')
 
     return null
   },
@@ -245,7 +247,7 @@ export const markReturned = mutation({
     }
 
     await ctx.db.patch(loan._id, { status: 'returned' })
-    // F6: schedule the returned notification here with ctx.scheduler.runAfter(0, ...).
+    await scheduleRequestNotification(ctx, loan._id, 'returned')
 
     return null
   },

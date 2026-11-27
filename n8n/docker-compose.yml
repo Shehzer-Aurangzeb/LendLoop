@@ -1,0 +1,15 @@
+services:
+  n8n:
+    image: n8nio/n8n:2.49.8
+    ports:
+      - '127.0.0.1:5678:5678'
+    environment:
+      # Compose reads this from n8n/.env; only this value is passed in, so the webhook secret stays out of the container.
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
+      GENERIC_TIMEZONE: America/Toronto
+      TZ: America/Toronto
+    volumes:
+      - n8n_data:/home/node/.n8n
+
+volumes:
+  n8n_data:
