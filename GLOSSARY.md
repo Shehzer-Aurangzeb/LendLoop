@@ -46,7 +46,7 @@ _Avoid_: Booking, rental, reservation
 A loan in the requested status, waiting for the lender.
 
 **Loan status**:
-Requested, approved, declined, returned or cancelled. Cancelled happens only when an admin removes the tool before the loan starts.
+Requested, approved, declined, returned or cancelled. Cancelled happens when the borrower withdraws a request before the lender decides, or when an admin removes the tool before the loan starts.
 
 **Removed tool**:
 A tool its lender or an admin has taken off the board. It stays on record so past loans still make sense.
