@@ -78,6 +78,7 @@ started with `/new-feature`. It runs alongside the hard rule above.
 ## Secrets — a hard rule
 
 - Real secrets live only in `.env.local`, the Convex dashboard env vars, and n8n credentials.
+- `n8n/.env` is gitignored and holds the local n8n encryption key and the test script's webhook secret.
 - `.env.example` lists every variable name with no value.
 - Exported n8n workflow JSON must contain no secret. Check before saving it to the repo.
 - `BRIEF.md` and `issues/` are gitignored. Never stage them.
@@ -160,6 +161,7 @@ List only folders that exist; add one here when it is created.
 app/          Next.js routes (App Router)
 components/   Shared React components
 convex/       Schema and backend functions; tests sit next to them as *.test.ts
+n8n/          docker-compose, exported workflow JSON and a signed test script
 proxy.ts      Clerk middleware (Next.js 16 name for middleware.ts)
 ```
 

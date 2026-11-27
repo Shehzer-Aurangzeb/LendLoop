@@ -105,22 +105,39 @@ Running list, one entry per decision. Becomes the design and security section of
 - **The public page reads the list with `useQuery`, a live subscription.** A tool added while a visitor has the page open appears without a reload. `fetchQuery` would be a one-off snapshot.
 - **A failed public list shows a short message from a Next.js `catchError` boundary.** `useQuery` throws on failure; a function boundary needs no class and no new dependency.
 - **The category filter runs in the browser over the full list.** The list is small and already loaded, so switching is instant.
-- **n8n gets only the fields a message needs.**
+- **n8n gets only the fields a message needs.** A request notification carries first names, the tool name and the dates, plus ids and `sentAt`. No email and no full name reach n8n, a third-party system. The internal query that builds it declares an exact `returns` validator, so an extra field fails loudly.
 
 ## Integration
 
-- **HMAC both directions, separate secrets**, verified on the raw body.
+- **HMAC both directions, separate secrets, verified on the raw body.** For request notifications, Convex signs the exact body string with HMAC-SHA256, hex, in the `X-LendLoop-Signature` header; n8n hashes the raw request bytes, not re-parsed JSON, so spacing or key order cannot break or fake a match. Web Crypto, so no new dependency.
 - **Reminder write-backs are idempotent on `loanId + date`.** A retried write-back changes nothing.
 - **The reminder duplicate check reads the `loanId + date` index and filters on `kind`.** A loan has only a few activity rows a day, so a filter is cheap, and keeping `kind` out of the index keeps the per-loan activity list sorted by date.
 - **`/overdue` skips loans already reminded today.** A manual rerun never sends a second email.
 - **n8n writes back once per loan per run, `sent` or `failed`.** Retries happen on the send node; a final failure also triggers the error workflow.
+- **Every loan status change, and each request declined by a tool removal, schedules one request notification.** The mutation passes only `loanId` and `event`; the action builds the payload. Both removals share `declineAndNotifyWaitingRequests`, so neither can forget to notify.
+- **Who is told:** the Lender for `requested` and `cancelled`; the Borrower for `approved`, `declined` and `returned`, including a decline caused by a tool removal.
+- **n8n compares signatures in constant time.** A normal `===` stops at the first wrong character, which leaks how much matched.
+- **Replay defence has two parts: a `sentAt` time inside the signed body and a `notificationId` dedupe.** The 5-minute window makes an old captured request useless; the dedupe stops a replay inside that window and our own retry from logging twice. Neither covers both cases alone.
+- **`sentAt` may be up to 60 seconds in the future.** Small clock drift between the Convex host and the n8n container should not reject a real request.
+- **`notificationId` is `<loanId>:<event>`.** A loan's status only moves forward, so each pair happens once per loan.
+- **Retries after 1 minute, then 5 minutes, then a `console.error`.** Three tries ride out a short n8n restart. Each retry sends a fresh `sentAt` and a new signature but the same `notificationId`, so a late success is still deduped.
+- **The action never throws.** The loan change already committed; a notifier problem is a log line, not a failed approval.
+- **`N8N_REQUEST_WEBHOOK_URL` and `N8N_WEBHOOK_SECRET` are read with `process.env` in the action**, not declared in `convex.config.ts`. A missing value is a logged error, and Convex still deploys without n8n.
+- **The shared secret lives in Convex env vars, the n8n Crypto credential, and the gitignored `n8n/.env` for the local test script.** The exported workflow JSON names the credential by id and name only, so it is safe to commit.
+- **docker-compose passes only `N8N_ENCRYPTION_KEY` into the container**, not the whole `n8n/.env`. The webhook secret in that file is for the test script, so it never enters the container's environment.
+- **n8n's port is bound to `127.0.0.1`.** Only this machine can reach the webhook and the editor.
+- **The signature check reads the raw body back from the Webhook node.** The Crypto node drops the binary it hashed. Tested in n8n's default and filesystem binary modes.
+- **An unknown `event` makes the log step throw, so n8n answers 500.** Convex then retries and finally logs it, instead of a silent 200.
+- **The test script passes the secret to `openssl` as an argument.** Other local processes could see it in the process list; fine for a local test tool, never for production code. The README's `npx convex env set N8N_WEBHOOK_SECRET` step has the same local-only trade-off.
 
 ## Known limits
 
 - **The board, My tools, the Loans page and the admin loan list may show a stale "out" or "overdue" across midnight.** Their queries work out today on the server, and Convex reruns a query only when its data changes. A page left open overnight catches up on the next write or reload; until then "Mark as returned" can stay hidden on a loan that started that day. Reminders are unaffected: n8n asks the server fresh each run. Fix if it matters: return raw dates and compare in the browser.
+- **n8n marks a `notificationId` as handled before the log step runs.** If the log step crashed after that, a retry of the same id would be dropped as a duplicate. Fine for a mock logger; a real sender should dedupe after a successful send.
 
 ## Later, if it grows
 
+- **Production n8n needs HTTPS and secret rotation.** HTTPS keeps the body and signature private in transit; rotation means accepting the old and new secret for a short switch-over.
 - **Paginate the public tool list.** It reads every tool per visit, fine for tens of tools. The admin `listListings` and `listLenders` load every tool too.
 - **Filter by category on the server, using the `by_category` index.** Goes together with pagination; for now the browser filters the full list.
 - **Share the button focus-ring style.** Two buttons repeat the same Tailwind focus classes; pull them into one shared class when a third button needs them.

@@ -56,6 +56,10 @@ _Avoid_: Deleted tool
 A record of an automated message about a loan: a request notification or an overdue reminder, and whether it was sent.
 _Avoid_: Audit log, history
 
+**Request notification**:
+A signed message Convex sends to n8n when a loan's status changes, so n8n can tell the other person. The Lender hears about a new or cancelled request; the Borrower hears about an approval, a decline or a return.
+_Avoid_: Webhook (that is the n8n endpoint), alert, email
+
 **Lent out**:
 A tool with an approved loan that has started and is not yet returned, overdue or not. Any other tool on the board is available.
 _Avoid_: Booked, unavailable
