@@ -8,6 +8,7 @@ import CategoryTile from '@/components/CategoryTile'
 import { conditionLabels } from '@/components/conditionLabels'
 import LenderCard from '@/components/LenderCard'
 import PageTitle from '@/components/PageTitle'
+import SectionHeading from '@/components/SectionHeading'
 import type { api } from '@/convex/_generated/api'
 
 type ToolForPage = NonNullable<
@@ -48,12 +49,9 @@ const ToolProfile = ({ toolId, tool }: ToolProfileProps) => {
         aria-labelledby={panelTitleId}
         className="flex min-w-0 flex-[1_1_360px] flex-col gap-5 rounded-3xl border border-line bg-surface p-6"
       >
-        <h2
-          id={panelTitleId}
-          className="font-display text-2xl font-semibold tracking-[-0.02em]"
-        >
+        <SectionHeading id={panelTitleId}>
           {tool.isMine ? 'Your tool' : 'Ask to borrow'}
-        </h2>
+        </SectionHeading>
         {tool.isMine ? (
           <p className="text-[15px] text-ink-soft">
             This is your tool. Change it in{' '}

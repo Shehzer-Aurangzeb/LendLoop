@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import Link from 'next/link'
 import { countDaysInRange } from '@/components/countDaysInRange'
+import { formatDayCount } from '@/components/formatDayCount'
 import { formatDateRange } from '@/components/formatDateRange'
 import { useBorrowRequest } from '@/components/useBorrowRequest'
 
@@ -86,7 +87,7 @@ const BorrowRequestForm = ({
       {hasRange && (
         <p className="flex flex-wrap justify-between gap-2 rounded-[14px] bg-ground px-4 py-3.5 text-[15px]">
           <span className="text-ink-soft">
-            {dayCount} {dayCount === 1 ? 'day' : 'days'}
+            {formatDayCount(dayCount)}
           </span>
           <span className="font-semibold">
             {formatDateRange(startDate, endDate)}
