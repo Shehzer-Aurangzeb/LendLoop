@@ -22,12 +22,16 @@ const SiteHeader = () => (
         </span>
       </Link>
       <nav aria-label="Main" className="flex items-center gap-2">
-        <Link href="/#how" className={sectionLinkClass}>
-          How it works
-        </Link>
-        <Link href="/#board" className={sectionLinkClass}>
-          The board
-        </Link>
+        <Suspense>
+          <Show when="signed-out">
+            <Link href="/#how" className={sectionLinkClass}>
+              How it works
+            </Link>
+            <Link href="/#board" className={sectionLinkClass}>
+              The board
+            </Link>
+          </Show>
+        </Suspense>
         <SignInCta label="Sign in" look="outline" />
         <Suspense>
           <Show when="signed-in">

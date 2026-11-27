@@ -3,8 +3,7 @@ import Link from 'next/link'
 import { auth } from '@clerk/nextjs/server'
 import BoardGreeting from '@/components/BoardGreeting'
 import LoadErrorBoundary from '@/components/LoadErrorBoundary'
-import SiteFooter from '@/components/SiteFooter'
-import SiteHeader from '@/components/SiteHeader'
+import SignedInPage from '@/components/SignedInPage'
 import StrokeIcon from '@/components/StrokeIcon'
 import ToolBoard from '@/components/ToolBoard'
 
@@ -15,9 +14,8 @@ export default async function BoardPage() {
   await auth.protect()
 
   return (
-    <>
-      <SiteHeader />
-      <main className="page-container flex flex-1 flex-col gap-2 pt-10 pb-[72px]">
+    <SignedInPage>
+      <div className="flex flex-col gap-2">
         <div className="flex flex-wrap items-end justify-between gap-4">
           <BoardGreeting />
           <Link
@@ -37,8 +35,7 @@ export default async function BoardPage() {
         >
           <ToolBoard />
         </LoadErrorBoundary>
-      </main>
-      <SiteFooter />
-    </>
+      </div>
+    </SignedInPage>
   )
 }

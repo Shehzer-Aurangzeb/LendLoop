@@ -71,6 +71,7 @@ Running list, one entry per decision. Becomes the design and security section of
 
 - **My tools reads each of the lender's tools' loans by `by_tool`; the board does one approved-loans read for every tool.** One lender has few tools, and My tools also needs the waiting-request count per tool.
 - **One server rule each for "lent out" and "first name", shared by the board and My tools.** The two screens cannot disagree on whether a tool is out, and no full name leaves Convex.
+- **An overdue tool reads "due back <day>" on both screens** ("Out, due back…" on the board, "With Liam, due back…" on My tools), so "until" never names a day that has passed.
 - **Timezone tests run in both directions**: an app timezone behind UTC (Toronto) and one ahead of it (Auckland).
 
 ## Data minimisation
@@ -91,6 +92,10 @@ Running list, one entry per decision. Becomes the design and security section of
 - **The reminder duplicate check reads the `loanId + date` index and filters on `kind`.** A loan has only a few activity rows a day, so a filter is cheap, and keeping `kind` out of the index keeps the per-loan activity list sorted by date.
 - **`/overdue` skips loans already reminded today.** A manual rerun never sends a second email.
 - **n8n writes back once per loan per run, `sent` or `failed`.** Retries happen on the send node; a final failure also triggers the error workflow.
+
+## Known limits
+
+- **The board and My tools may show a stale "out" or "overdue" across midnight.** Their queries work out today on the server, and Convex reruns a query only when its data changes. A page left open overnight catches up on the next write or reload. Reminders are unaffected: n8n asks the server fresh each run. Fix if it matters: return raw dates and compare in the browser.
 
 ## Later, if it grows
 

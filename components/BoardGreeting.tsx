@@ -1,14 +1,15 @@
 'use client'
 
 import { useUser } from '@clerk/nextjs'
+import PageTitle from '@/components/PageTitle'
 
 const BoardGreeting = () => {
   const { user } = useUser()
 
   return (
-    <h1 className="font-display text-[38px] font-bold tracking-[-0.03em]">
+    <PageTitle>
       {user?.firstName ? `Hi, ${user.firstName}` : 'Hi there'}
-    </h1>
+    </PageTitle>
   )
 }
 

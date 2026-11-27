@@ -40,10 +40,10 @@ const requireOwnTool = async (ctx: MutationCtx, toolId: Id<'tools'>) => {
   const tool = await ctx.db.get(toolId)
 
   if (!tool || tool.removedAt !== undefined) {
-    throw new ConvexError('Tool not found')
+    throw new ConvexError('Tool not found.')
   }
   if (tool.ownerId !== user._id) {
-    throw new ConvexError('You can only change your own tools')
+    throw new ConvexError('You can only change your own tools.')
   }
 
   return tool
@@ -269,7 +269,7 @@ export const removeOwn = mutation({
 
     // Approved means not yet returned, whether it has started or not.
     if (loans.some((loan) => loan.status === 'approved')) {
-      throw new ConvexError('This tool has an active loan')
+      throw new ConvexError('This tool has an active loan.')
     }
 
     for (const loan of loans) {

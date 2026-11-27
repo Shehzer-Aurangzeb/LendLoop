@@ -106,7 +106,7 @@ describe('tools.create', () => {
     const t = convexTest(schema, modules)
 
     await expect(t.mutation(api.tools.create, newTool)).rejects.toThrow(
-      'Please sign in'
+      'Please sign in.'
     )
     expect(await storedTools(t)).toEqual([])
   })
@@ -178,7 +178,7 @@ describe('tools.listMine', () => {
   test('a signed-out caller is refused', async () => {
     const t = convexTest(schema, modules)
 
-    await expect(t.query(api.tools.listMine)).rejects.toThrow('Please sign in')
+    await expect(t.query(api.tools.listMine)).rejects.toThrow('Please sign in.')
   })
 
   test("returns only the caller's tools, without removed ones, A to Z", async () => {
@@ -377,7 +377,7 @@ describe('tools.update', () => {
 
     await expect(
       asBen.mutation(api.tools.update, { toolId, ...editedTool })
-    ).rejects.toThrow('You can only change your own tools')
+    ).rejects.toThrow('You can only change your own tools.')
     expect(await t.run((ctx) => ctx.db.get(toolId))).toMatchObject(newTool)
   })
 
@@ -386,7 +386,7 @@ describe('tools.update', () => {
 
     await expect(
       t.mutation(api.tools.update, { toolId, ...editedTool })
-    ).rejects.toThrow('Please sign in')
+    ).rejects.toThrow('Please sign in.')
   })
 
   test('a removed tool is refused as not found', async () => {
@@ -396,7 +396,7 @@ describe('tools.update', () => {
 
     await expect(
       asAsha.mutation(api.tools.update, { toolId, ...editedTool })
-    ).rejects.toThrow('Tool not found')
+    ).rejects.toThrow('Tool not found.')
   })
 
   test('a tool id that no longer exists is refused as not found', async () => {
@@ -406,7 +406,7 @@ describe('tools.update', () => {
 
     await expect(
       asAsha.mutation(api.tools.update, { toolId, ...editedTool })
-    ).rejects.toThrow('Tool not found')
+    ).rejects.toThrow('Tool not found.')
   })
 
   test.each([
@@ -480,7 +480,7 @@ describe('tools.listForBoard', () => {
     const t = convexTest(schema, modules)
 
     await expect(t.query(api.tools.listForBoard)).rejects.toThrow(
-      'Please sign in'
+      'Please sign in.'
     )
   })
 
@@ -669,7 +669,7 @@ describe('tools.removeOwn', () => {
 
     await expect(
       asBen.mutation(api.tools.removeOwn, { toolId })
-    ).rejects.toThrow('You can only change your own tools')
+    ).rejects.toThrow('You can only change your own tools.')
     expect(await removedAtOf(t, toolId)).toBeUndefined()
   })
 
@@ -677,7 +677,7 @@ describe('tools.removeOwn', () => {
     const { t, toolId } = await listAshasDrill()
 
     await expect(t.mutation(api.tools.removeOwn, { toolId })).rejects.toThrow(
-      'Please sign in'
+      'Please sign in.'
     )
     expect(await removedAtOf(t, toolId)).toBeUndefined()
   })
@@ -699,7 +699,7 @@ describe('tools.removeOwn', () => {
 
       await expect(
         asAsha.mutation(api.tools.removeOwn, { toolId })
-      ).rejects.toThrow('This tool has an active loan')
+      ).rejects.toThrow('This tool has an active loan.')
       expect(await removedAtOf(t, toolId)).toBeUndefined()
       expect(await loanStatuses(t)).toEqual(['approved', 'requested'])
     }
@@ -755,6 +755,6 @@ describe('tools.removeOwn', () => {
 
     await expect(
       asAsha.mutation(api.tools.removeOwn, { toolId })
-    ).rejects.toThrow('Tool not found')
+    ).rejects.toThrow('Tool not found.')
   })
 })

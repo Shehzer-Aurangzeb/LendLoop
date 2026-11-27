@@ -3,10 +3,9 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { categoryLabels } from '@/components/categoryLabels'
-import CategoryTile from '@/components/CategoryTile'
-import PillRadioGroup from '@/components/PillRadioGroup'
+import PhotoPlaceholder from '@/components/PhotoPlaceholder'
+import RadioGroup from '@/components/RadioGroup'
 import RemoveToolButton from '@/components/RemoveToolButton'
-import SegmentedRadioGroup from '@/components/SegmentedRadioGroup'
 import { conditionLabels } from '@/components/conditionLabels'
 import { useOwnToolChanges } from '@/components/useOwnToolChanges'
 import type { ToolFields } from '@/components/useOwnToolChanges'
@@ -115,15 +114,7 @@ const ToolForm = ({
         {labels.heading}
       </h2>
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-        {/* Upload comes later; the tile shows what neighbours will see meanwhile. */}
-        <div className="flex flex-col items-center gap-2 rounded-[18px] border-2 border-dashed border-line-strong bg-ground px-4 py-5 text-center">
-          <div className="w-24">
-            <CategoryTile category={tool.category} />
-          </div>
-          <span className="text-[13px] text-ink-muted">
-            Photos coming soon
-          </span>
-        </div>
+        <PhotoPlaceholder category={tool.category} />
         <label className={fieldLabelClass}>
           Name
           <input
@@ -136,15 +127,17 @@ const ToolForm = ({
             className={`min-h-11 ${inputClass}`}
           />
         </label>
-        <PillRadioGroup
+        <RadioGroup
           legend="Category"
+          look="pills"
           name="category"
           labels={categoryLabels}
           selected={tool.category}
           onSelect={(category) => change({ category })}
         />
-        <SegmentedRadioGroup
+        <RadioGroup
           legend="Condition"
+          look="segmented"
           name="condition"
           labels={conditionLabels}
           selected={tool.condition}

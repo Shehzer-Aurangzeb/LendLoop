@@ -6,8 +6,17 @@ import BoardSkeleton from '@/components/BoardSkeleton'
 import BoardToolCard from '@/components/BoardToolCard'
 import CategoryFilter from '@/components/CategoryFilter'
 import type { CategoryChoice } from '@/components/CategoryFilter'
+import { categoryLabels } from '@/components/categoryLabels'
 import { useQueryOnceUserReady } from '@/components/useQueryOnceUserReady'
 import { api } from '@/convex/_generated/api'
+
+const countLine = (count: number, choice: CategoryChoice) => {
+  const tools = `${count} ${count === 1 ? 'tool' : 'tools'}`
+
+  return choice === 'all'
+    ? `${tools} on the board.`
+    : `${tools} in ${categoryLabels[choice].toLowerCase()}.`
+}
 
 const ToolBoard = () => {
   const tools = useQueryOnceUserReady(api.tools.listForBoard)
@@ -35,7 +44,7 @@ const ToolBoard = () => {
   return (
     <div className="flex flex-col gap-6">
       <p className="text-base text-ink-muted">
-        {tools.length} {tools.length === 1 ? 'tool' : 'tools'} on the board.
+        {countLine(shownTools.length, selectedCategory)}
       </p>
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-2">
         <CategoryFilter selected={selectedCategory}

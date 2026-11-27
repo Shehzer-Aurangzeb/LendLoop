@@ -6,7 +6,7 @@ export const requireIdentity = async (ctx: QueryCtx) => {
   const identity = await ctx.auth.getUserIdentity()
 
   if (!identity) {
-    throw new ConvexError('Please sign in')
+    throw new ConvexError('Please sign in.')
   }
 
   return identity
@@ -23,7 +23,7 @@ export const requireUser = async (ctx: QueryCtx) => {
   const user = await findUserByToken(ctx, identity.tokenIdentifier)
 
   if (!user) {
-    throw new ConvexError('Your account is not set up yet')
+    throw new ConvexError('Your account is not set up yet.')
   }
 
   return user
@@ -33,7 +33,7 @@ export const requireAdmin = async (ctx: QueryCtx) => {
   const user = await requireUser(ctx)
 
   if (user.role !== 'admin') {
-    throw new ConvexError('Admins only')
+    throw new ConvexError('Admins only.')
   }
 
   return user

@@ -36,7 +36,7 @@ describe('signed out', () => {
     const t = convexTest(schema, modules)
 
     expect(await errorMessageOf(t.run((ctx) => requireIdentity(ctx)))).toBe(
-      'Please sign in'
+      'Please sign in.'
     )
   })
 
@@ -44,7 +44,7 @@ describe('signed out', () => {
     const t = convexTest(schema, modules)
 
     expect(await errorMessageOf(t.run((ctx) => requireUser(ctx)))).toBe(
-      'Please sign in'
+      'Please sign in.'
     )
   })
 
@@ -52,7 +52,7 @@ describe('signed out', () => {
     const t = convexTest(schema, modules)
 
     expect(await errorMessageOf(t.run((ctx) => requireAdmin(ctx)))).toBe(
-      'Please sign in'
+      'Please sign in.'
     )
   })
 })
@@ -73,7 +73,7 @@ describe('signed in', () => {
 
     expect(
       await errorMessageOf(asNeighbour.run((ctx) => requireUser(ctx)))
-    ).toBe('Your account is not set up yet')
+    ).toBe('Your account is not set up yet.')
   })
 
   test('requireUser returns the row of a normal user', async () => {
@@ -93,7 +93,7 @@ describe('signed in', () => {
 
     expect(
       await errorMessageOf(asNeighbour.run((ctx) => requireAdmin(ctx)))
-    ).toBe('Admins only')
+    ).toBe('Admins only.')
   })
 
   test('requireAdmin returns the row of an admin', async () => {
