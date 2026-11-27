@@ -181,5 +181,6 @@ pnpm only. Convex runs as a local deployment (no account); its data lives in `.c
 | -------------------------- | -------------------------------------------------------------------------- |
 | `decisions.md`             | **Running list of decisions and reasons. Becomes the README's design notes.** |
 | `REVIEW_CHECKLIST.md`      | **Rules the `pr-reviewer` agent checks every diff against.**               |
+| `request-notifications.md` | **How F6 request notifications flow from a loan change to n8n.**           |
 | `adr/`                     | **Hard-to-reverse decisions, one file each, created when needed.**         |
 | `agents/`                  | **How the AI workflow skills find the issue tracker and domain docs.**     |
