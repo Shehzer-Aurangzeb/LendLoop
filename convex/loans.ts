@@ -4,7 +4,7 @@ import type { MutationCtx, QueryCtx } from '@/convex/_generated/server'
 import type { Doc, Id } from '@/convex/_generated/dataModel'
 import { requireUser } from '@/convex/lib/auth'
 import { isCalendarDay, todayInAppTimezone } from '@/convex/lib/dates'
-import { doDayRangesOverlap } from '@/convex/lib/loans'
+import { doDayRangesOverlap, isLentOutOn } from '@/convex/lib/loans'
 import { firstNameOf, loadUsersById } from '@/convex/lib/users'
 import schema, { categoryValidator } from '@/convex/schema'
 
@@ -226,6 +226,29 @@ export const cancel = mutation({
   },
 })
 
+export const markReturned = mutation({
+  args: { loanId: v.id('loans') },
+  returns: v.null(),
+  handler: async (ctx, { loanId }) => {
+    const { user, loan } = await loadLoanForCaller(ctx, loanId)
+
+    if (loan.lenderId !== user._id) {
+      throw new ConvexError('Only the lender can mark this loan returned.')
+    }
+    if (loan.status !== 'approved') {
+      throw new ConvexError('Only a loan that is out can be marked returned.')
+    }
+    if (!isLentOutOn(loan, todayInAppTimezone())) {
+      throw new ConvexError('This loan has not started yet.')
+    }
+
+    await ctx.db.patch(loan._id, { status: 'returned' })
+    // F6: schedule the returned notification here with ctx.scheduler.runAfter(0, ...).
+
+    return null
+  },
+})
+
 const loadRequestsWaitingFor = async (ctx: QueryCtx, lenderId: Id<'users'>) =>
   (
     await ctx.db
@@ -275,5 +298,49 @@ export const countWaitingForMe = query({
     const user = await requireUser(ctx)
 
     return (await loadRequestsWaitingFor(ctx, user._id)).length
+  },
+})
+
+export const listMyLentOut = query({
+  args: {},
+  returns: v.array(
+    v.object({
+      _id: v.id('loans'),
+      toolName: v.string(),
+      toolCategory: categoryValidator,
+      borrowerFirstName: v.string(),
+      startDate: v.string(),
+      endDate: v.string(),
+      hasStarted: v.boolean(),
+      isOverdue: v.boolean(),
+    })
+  ),
+  handler: async (ctx) => {
+    const user = await requireUser(ctx)
+    const today = todayInAppTimezone()
+    const loans = (
+      await ctx.db
+        .query('loans')
+        .withIndex('by_lender', (q) => q.eq('lenderId', user._id))
+        .collect()
+    )
+      .filter((loan) => loan.status === 'approved')
+      .sort((a, b) => a.startDate.localeCompare(b.startDate))
+    const borrowers = await loadUsersById(
+      ctx,
+      loans.map((loan) => loan.borrowerId)
+    )
+
+    return await Promise.all(
+      loans.map(async (loan) => ({
+        _id: loan._id,
+        ...(await loadToolSummary(ctx, loan.toolId)),
+        borrowerFirstName: firstNameOf(borrowers.get(loan.borrowerId)),
+        startDate: loan.startDate,
+        endDate: loan.endDate,
+        hasStarted: isLentOutOn(loan, today),
+        isOverdue: loan.endDate < today,
+      }))
+    )
   },
 })

@@ -847,3 +847,250 @@ describe('loans.listWaitingForMe and countWaitingForMe', () => {
     expect(await asAsha.query(api.loans.countWaitingForMe)).toBe(0)
   })
 })
+
+// Ben has had the drill since Mon 23 November; it is due back Sat 28th.
+const bensLoanOutNow = { startDate: '2026-11-23', endDate: '2026-11-28' }
+
+describe('loans.markReturned', () => {
+  test('the lender marks a started loan returned', async () => {
+    const { t, asAsha, toolId } = await setUpAshasDrill()
+    const loanId = await insertLoan(t, toolId, 'ben', {
+      ...bensLoanOutNow,
+      status: 'approved',
+    })
+
+    await asAsha.mutation(api.loans.markReturned, { loanId })
+
+    expect(await storedStatus(t, loanId)).toBe('returned')
+  })
+
+  test('an overdue loan can be marked returned', async () => {
+    const { t, asAsha, toolId } = await setUpAshasDrill()
+    const loanId = await insertLoan(t, toolId, 'ben', {
+      startDate: '2026-11-20',
+      endDate: yesterday,
+      status: 'approved',
+    })
+
+    await asAsha.mutation(api.loans.markReturned, { loanId })
+
+    expect(await storedStatus(t, loanId)).toBe('returned')
+  })
+
+  test('a loan starting today in APP_TIMEZONE can be marked returned', async () => {
+    const { t, asAsha, toolId } = await setUpAshasDrill()
+    const loanId = await insertLoan(t, toolId, 'ben', {
+      startDate: today,
+      endDate: '2026-11-28',
+      status: 'approved',
+    })
+
+    await asAsha.mutation(api.loans.markReturned, { loanId })
+
+    expect(await storedStatus(t, loanId)).toBe('returned')
+  })
+
+  test('a loan starting tomorrow in APP_TIMEZONE is refused, though UTC says today', async () => {
+    const { t, asAsha, toolId } = await setUpAshasDrill()
+    const loanId = await insertLoan(t, toolId, 'ben', {
+      startDate: '2026-11-27',
+      endDate: '2026-11-28',
+      status: 'approved',
+    })
+
+    await expect(
+      asAsha.mutation(api.loans.markReturned, { loanId })
+    ).rejects.toThrow('This loan has not started yet.')
+    expect(await storedStatus(t, loanId)).toBe('approved')
+  })
+
+  test('a signed-out caller is refused', async () => {
+    const { t, toolId } = await setUpAshasDrill()
+    const loanId = await insertLoan(t, toolId, 'ben', {
+      ...bensLoanOutNow,
+      status: 'approved',
+    })
+
+    await expect(
+      t.mutation(api.loans.markReturned, { loanId })
+    ).rejects.toThrow('Please sign in.')
+    expect(await storedStatus(t, loanId)).toBe('approved')
+  })
+
+  test('a missing loan is refused', async () => {
+    const { t, asAsha, toolId } = await setUpAshasDrill()
+    const loanId = await insertLoan(t, toolId, 'ben', {
+      ...bensLoanOutNow,
+      status: 'approved',
+    })
+
+    await t.run((ctx) => ctx.db.delete(loanId))
+
+    await expect(
+      asAsha.mutation(api.loans.markReturned, { loanId })
+    ).rejects.toThrow('Loan not found.')
+  })
+
+  test.each(['ben', 'cara'] as const)(
+    'anyone but the lender is refused: %s',
+    async (caller) => {
+      const { t, asBen, asCara, toolId } = await setUpAshasDrill()
+      const loanId = await insertLoan(t, toolId, 'ben', {
+        ...bensLoanOutNow,
+        status: 'approved',
+      })
+      const asCaller = caller === 'ben' ? asBen : asCara
+
+      await expect(
+        asCaller.mutation(api.loans.markReturned, { loanId })
+      ).rejects.toThrow('Only the lender can mark this loan returned.')
+      expect(await storedStatus(t, loanId)).toBe('approved')
+    }
+  )
+
+  test.each(['requested', 'declined', 'cancelled', 'returned'] as const)(
+    'a loan that is %s is refused',
+    async (status) => {
+      const { t, asAsha, toolId } = await setUpAshasDrill()
+      const loanId = await insertLoan(t, toolId, 'ben', {
+        ...bensLoanOutNow,
+        status,
+      })
+
+      await expect(
+        asAsha.mutation(api.loans.markReturned, { loanId })
+      ).rejects.toThrow('Only a loan that is out can be marked returned.')
+      expect(await storedStatus(t, loanId)).toBe(status)
+    }
+  )
+
+  test('once returned, the loan leaves the lent-out list', async () => {
+    const { t, asAsha, toolId } = await setUpAshasDrill()
+    const loanId = await insertLoan(t, toolId, 'ben', {
+      ...bensLoanOutNow,
+      status: 'approved',
+    })
+
+    expect(await asAsha.query(api.loans.listMyLentOut)).toHaveLength(1)
+
+    await asAsha.mutation(api.loans.markReturned, { loanId })
+
+    expect(await asAsha.query(api.loans.listMyLentOut)).toEqual([])
+  })
+
+  test('once returned, the board no longer shows the tool lent out', async () => {
+    const { t, asAsha, asBen, toolId } = await setUpAshasDrill()
+    const loanId = await insertLoan(t, toolId, 'ben', {
+      ...bensLoanOutNow,
+      status: 'approved',
+    })
+    const lentOutOnBoard = async () =>
+      (await asBen.query(api.tools.listForBoard))[0].lentOut
+
+    expect(await lentOutOnBoard()).toBeDefined()
+
+    await asAsha.mutation(api.loans.markReturned, { loanId })
+
+    expect(await lentOutOnBoard()).toBeUndefined()
+  })
+})
+
+describe('loans.listMyLentOut', () => {
+  test('a signed-out caller is refused', async () => {
+    const t = convexTest(schema, modules)
+
+    await expect(t.query(api.loans.listMyLentOut)).rejects.toThrow(
+      'Please sign in.'
+    )
+  })
+
+  test("gives only the caller's approved loans as lender, earliest first day first", async () => {
+    const { t, asAsha, asBen, toolId } = await setUpAshasDrill()
+    const bensSawId = await asBen.mutation(api.tools.create, {
+      ...drill,
+      name: 'Saw',
+    })
+
+    await insertLoan(t, toolId, 'cara', {
+      startDate: '2026-12-20',
+      endDate: '2026-12-21',
+      status: 'approved',
+    })
+    await insertLoan(t, toolId, 'ben', {
+      ...bensLoanOutNow,
+      status: 'approved',
+    })
+    for (const status of ['requested', 'declined', 'cancelled', 'returned'] as const) {
+      await insertLoan(t, toolId, 'ben', {
+        startDate: '2026-12-01',
+        endDate: '2026-12-02',
+        status,
+      })
+    }
+    // Asha borrowing Ben's saw is not lent out by Asha.
+    await insertLoan(t, bensSawId, 'asha', {
+      startDate: '2026-12-01',
+      endDate: '2026-12-02',
+      status: 'approved',
+    })
+
+    const rows = await asAsha.query(api.loans.listMyLentOut)
+
+    expect(rows.map((row) => [row.startDate, row.borrowerFirstName])).toEqual([
+      ['2026-11-23', 'Ben'],
+      ['2026-12-20', 'Cara'],
+    ])
+  })
+
+  test("each row has exactly the declared keys and the borrower's first name only", async () => {
+    const { t, asAsha, toolId } = await setUpAshasDrill()
+    const loanId = await insertLoan(t, toolId, 'ben', {
+      ...bensLoanOutNow,
+      status: 'approved',
+    })
+
+    const [row] = await asAsha.query(api.loans.listMyLentOut)
+
+    expect(row).toEqual({
+      _id: loanId,
+      toolName: 'Drill',
+      toolCategory: 'power-tools',
+      borrowerFirstName: 'Ben',
+      startDate: '2026-11-23',
+      endDate: '2026-11-28',
+      hasStarted: true,
+      isOverdue: false,
+    })
+  })
+
+  test('hasStarted and isOverdue follow today in APP_TIMEZONE', async () => {
+    const { t, asAsha, toolId } = await setUpAshasDrill()
+
+    await insertLoan(t, toolId, 'ben', {
+      startDate: '2026-11-20',
+      endDate: yesterday,
+      status: 'approved',
+    })
+    await insertLoan(t, toolId, 'ben', {
+      startDate: '2026-11-21',
+      endDate: today,
+      status: 'approved',
+    })
+    // Today in UTC, tomorrow in Toronto.
+    await insertLoan(t, toolId, 'ben', {
+      startDate: '2026-11-27',
+      endDate: '2026-11-28',
+      status: 'approved',
+    })
+
+    const rows = await asAsha.query(api.loans.listMyLentOut)
+
+    expect(
+      rows.map((row) => [row.startDate, row.hasStarted, row.isOverdue])
+    ).toEqual([
+      ['2026-11-20', true, true],
+      ['2026-11-21', true, false],
+      ['2026-11-27', false, false],
+    ])
+  })
+})

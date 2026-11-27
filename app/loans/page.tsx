@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { auth } from '@clerk/nextjs/server'
 import BorrowingSection from '@/components/BorrowingSection'
+import LentOutSection from '@/components/LentOutSection'
 import LoadErrorBoundary from '@/components/LoadErrorBoundary'
 import PageTitle from '@/components/PageTitle'
 import SignedInPage from '@/components/SignedInPage'
@@ -20,6 +21,7 @@ export default async function LoansPage() {
       >
         <WaitingSection />
         <BorrowingSection />
+        <LentOutSection />
       </LoadErrorBoundary>
     </SignedInPage>
   )
