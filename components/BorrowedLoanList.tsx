@@ -1,4 +1,5 @@
 import type { FunctionReturnType } from 'convex/server'
+import CancelRequestButton from '@/components/CancelRequestButton'
 import { categoryStyles } from '@/components/categoryStyles'
 import { formatDateRange } from '@/components/formatDateRange'
 import LoanStatusPill from '@/components/LoanStatusPill'
@@ -52,6 +53,9 @@ const BorrowedLoanList = ({ loans }: { loans: BorrowedLoan[] }) => {
               </span>
             )}
             <LoanStatusPill status={loan.isOverdue ? 'overdue' : loan.status} />
+            {loan.status === 'requested' && (
+              <CancelRequestButton loanId={loan._id} toolName={loan.toolName} />
+            )}
           </li>
         )
       })}

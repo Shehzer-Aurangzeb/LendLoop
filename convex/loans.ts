@@ -127,24 +127,36 @@ export const listMyBorrowing = query({
   },
 })
 
-const loadRequestForItsLender = async (
-  ctx: MutationCtx,
-  loanId: Id<'loans'>
-) => {
+const loadLoanForCaller = async (ctx: MutationCtx, loanId: Id<'loans'>) => {
   const user = await requireUser(ctx)
   const loan = await ctx.db.get(loanId)
 
   if (!loan) {
     throw new ConvexError('Loan not found.')
   }
-  if (loan.lenderId !== user._id) {
-    throw new ConvexError('Only the lender can answer this request.')
-  }
+
+  return { user, loan }
+}
+
+// Runs after the caller check, so a stranger learns nothing about the status.
+const assertStillRequested = (loan: Doc<'loans'>) => {
   if (loan.status !== 'requested') {
     throw new ConvexError(
       'This request has already been answered or cancelled.'
     )
   }
+}
+
+const loadRequestForItsLender = async (
+  ctx: MutationCtx,
+  loanId: Id<'loans'>
+) => {
+  const { user, loan } = await loadLoanForCaller(ctx, loanId)
+
+  if (loan.lenderId !== user._id) {
+    throw new ConvexError('Only the lender can answer this request.')
+  }
+  assertStillRequested(loan)
 
   return loan
 }
@@ -191,6 +203,24 @@ export const decline = mutation({
 
     await ctx.db.patch(loan._id, { status: 'declined' })
     // F6: schedule the declined notification here with ctx.scheduler.runAfter(0, ...).
+
+    return null
+  },
+})
+
+export const cancel = mutation({
+  args: { loanId: v.id('loans') },
+  returns: v.null(),
+  handler: async (ctx, { loanId }) => {
+    const { user, loan } = await loadLoanForCaller(ctx, loanId)
+
+    if (loan.borrowerId !== user._id) {
+      throw new ConvexError('Only the borrower can cancel this request.')
+    }
+    assertStillRequested(loan)
+
+    await ctx.db.patch(loan._id, { status: 'cancelled' })
+    // F6: schedule the cancelled notification here with ctx.scheduler.runAfter(0, ...).
 
     return null
   },

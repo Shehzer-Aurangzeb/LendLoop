@@ -687,6 +687,87 @@ describe('loans.decline', () => {
   })
 })
 
+describe('loans.cancel', () => {
+  test('the borrower cancels a waiting request, and it stops waiting for the lender', async () => {
+    const { t, asAsha, asBen, toolId } = await setUpAshasDrill()
+    const loanId = await insertLoan(t, toolId, 'ben', {
+      ...bensRequest,
+      status: 'requested',
+    })
+
+    expect(
+      (await asAsha.query(api.loans.listWaitingForMe)).map((row) => row._id)
+    ).toEqual([loanId])
+    expect(await asAsha.query(api.loans.countWaitingForMe)).toBe(1)
+
+    await asBen.mutation(api.loans.cancel, { loanId })
+
+    expect(await storedStatus(t, loanId)).toBe('cancelled')
+    expect(await asAsha.query(api.loans.listWaitingForMe)).toEqual([])
+    expect(await asAsha.query(api.loans.countWaitingForMe)).toBe(0)
+  })
+
+  test('a signed-out caller is refused', async () => {
+    const { t, toolId } = await setUpAshasDrill()
+    const loanId = await insertLoan(t, toolId, 'ben', {
+      ...bensRequest,
+      status: 'requested',
+    })
+
+    await expect(t.mutation(api.loans.cancel, { loanId })).rejects.toThrow(
+      'Please sign in.'
+    )
+    expect(await storedStatus(t, loanId)).toBe('requested')
+  })
+
+  test('a missing loan is refused', async () => {
+    const { t, asBen, toolId } = await setUpAshasDrill()
+    const loanId = await insertLoan(t, toolId, 'ben', {
+      ...bensRequest,
+      status: 'requested',
+    })
+
+    await t.run((ctx) => ctx.db.delete(loanId))
+
+    await expect(asBen.mutation(api.loans.cancel, { loanId })).rejects.toThrow(
+      'Loan not found.'
+    )
+  })
+
+  test.each(['asha', 'cara'] as const)(
+    'anyone but the borrower is refused: %s',
+    async (caller) => {
+      const { t, asAsha, asCara, toolId } = await setUpAshasDrill()
+      const loanId = await insertLoan(t, toolId, 'ben', {
+        ...bensRequest,
+        status: 'requested',
+      })
+      const asCaller = caller === 'asha' ? asAsha : asCara
+
+      await expect(
+        asCaller.mutation(api.loans.cancel, { loanId })
+      ).rejects.toThrow('Only the borrower can cancel this request.')
+      expect(await storedStatus(t, loanId)).toBe('requested')
+    }
+  )
+
+  test.each(['approved', 'declined', 'cancelled', 'returned'] as const)(
+    'a loan already %s is refused',
+    async (status) => {
+      const { t, asBen, toolId } = await setUpAshasDrill()
+      const loanId = await insertLoan(t, toolId, 'ben', {
+        ...bensRequest,
+        status,
+      })
+
+      await expect(
+        asBen.mutation(api.loans.cancel, { loanId })
+      ).rejects.toThrow('This request has already been answered or cancelled.')
+      expect(await storedStatus(t, loanId)).toBe(status)
+    }
+  )
+})
+
 describe('loans.listWaitingForMe and countWaitingForMe', () => {
   test('a signed-out caller is refused', async () => {
     const t = convexTest(schema, modules)
