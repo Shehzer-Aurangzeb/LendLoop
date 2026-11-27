@@ -49,12 +49,16 @@ A loan in the requested status, waiting for the lender.
 Requested, approved, declined, returned or cancelled. Cancelled happens only when an admin removes the tool before the loan starts.
 
 **Removed tool**:
-A tool an admin has taken off the board. It stays on record so past loans still make sense.
+A tool its lender or an admin has taken off the board. It stays on record so past loans still make sense.
 _Avoid_: Deleted tool
 
 **Loan activity**:
 A record of an automated message about a loan: a request notification or an overdue reminder, and whether it was sent.
 _Avoid_: Audit log, history
+
+**Lent out**:
+A tool with an approved loan that has started and is not yet returned, overdue or not. Any other tool on the board is available.
+_Avoid_: Booked, unavailable
 
 **Overdue loan**:
 An approved loan whose end date is before today, in the app's one timezone. Worked out on read, never stored.

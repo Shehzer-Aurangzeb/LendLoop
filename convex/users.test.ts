@@ -76,6 +76,6 @@ describe('users.store', () => {
     const error = await t.mutation(api.users.store).catch((e: unknown) => e)
 
     expect(error).toBeInstanceOf(ConvexError)
-    expect((error as ConvexError<string>).data).toBe('Please sign in')
+    expect((error as ConvexError<string>).data).toBe('Please sign in.')
   })
 })

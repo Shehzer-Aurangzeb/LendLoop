@@ -16,7 +16,11 @@ const lookClasses = {
 const SignInCta = ({ label, look }: SignInCtaProps) => (
   <Suspense>
     <Show when="signed-out">
-      <SignInButton mode="modal">
+      <SignInButton
+        mode="modal"
+        forceRedirectUrl="/board"
+        signUpForceRedirectUrl="/board"
+      >
         <button
           type="button"
           className={`cursor-pointer rounded-full font-semibold ${lookClasses[look]}`}

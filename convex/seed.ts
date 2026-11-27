@@ -1,8 +1,9 @@
 import type { WithoutSystemFields } from 'convex/server'
 import { v } from 'convex/values'
 import type { Doc, Id } from '@/convex/_generated/dataModel'
-import { env, internalMutation } from '@/convex/_generated/server'
+import { internalMutation } from '@/convex/_generated/server'
 import { findUserByToken } from '@/convex/lib/auth'
+import { todayInAppTimezone } from '@/convex/lib/dates'
 
 type DemoUserKey = 'maya' | 'omar' | 'priya' | 'liam' | 'chen' | 'sofia'
 
@@ -249,10 +250,6 @@ const demoActivity: DemoActivity[] = [
   { loan: 'sawOverdue', kind: 'overdue-reminder', outcome: 'sent', day: -1 },
 ]
 
-// The en-CA locale formats dates as YYYY-MM-DD.
-const todayInTimezone = (timeZone: string) =>
-  new Intl.DateTimeFormat('en-CA', { timeZone }).format(new Date())
-
 // A date string is a calendar day, so UTC arithmetic avoids DST shifts.
 const addDays = (date: string, days: number) => {
   const day = new Date(`${date}T00:00:00Z`)
@@ -276,7 +273,7 @@ export const run = internalMutation({
       return 'skipped'
     }
 
-    const today = todayInTimezone(env.APP_TIMEZONE)
+    const today = todayInAppTimezone()
 
     const userIds = {} as Record<DemoUserKey, Id<'users'>>
 

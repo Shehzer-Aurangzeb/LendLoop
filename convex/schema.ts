@@ -10,6 +10,12 @@ export const categoryValidator = v.union(
   v.literal('other')
 )
 
+export const conditionValidator = v.union(
+  v.literal('like-new'),
+  v.literal('good'),
+  v.literal('worn')
+)
+
 export default defineSchema({
   users: defineTable({
     tokenIdentifier: v.string(),
@@ -24,11 +30,7 @@ export default defineSchema({
     name: v.string(),
     description: v.string(),
     category: categoryValidator,
-    condition: v.union(
-      v.literal('like-new'),
-      v.literal('good'),
-      v.literal('worn')
-    ),
+    condition: conditionValidator,
     // Soft delete: loans still point at the tool after removal.
     removedAt: v.optional(v.number()),
   })

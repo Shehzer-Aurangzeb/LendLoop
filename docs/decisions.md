@@ -28,6 +28,10 @@ Running list, one entry per decision. Becomes the design and security section of
 - **`requireIdentity` is separate from `requireUser`.** `users.store` runs before a users row exists, so it needs "signed in" without "has a row". All three helpers live in `convex/lib/auth.ts`, and no public function reads `ctx.auth` directly.
 - **`requireUser` and `requireAdmin` throw on the server.** The UI also waits for `users.store` before running user queries, but that is only so the screen looks right. The server check is what protects the data.
 
+- **Signed-in neighbours never see the landing page.** Sign-in and sign-up land on `/board` (`forceRedirectUrl` on the sign-in button), and `proxy.ts` sends a signed-in visit to `/` to `/board` before anything renders, so there is no flash and the landing page stays static for visitors. Convenience only; Clerk keeps real protection next to the resource.
+- **Signed-in pages redirect with `auth.protect()` in the page, not a route matcher in `proxy.ts`.** Clerk 7 deprecates `createRouteMatcher` in favour of checks next to the resource. The redirect is still only convenience; `requireUser` in Convex is the real check.
+- **Tool text is trimmed and length-checked in the Convex mutation before the write.** The browser's `maxLength` reads the same limits from one import-free file, so client and server cannot drift and no server code ships to the browser.
+
 ## Design
 
 - **Screens follow one approved design, kept outside the repo.** It is drawn before the signed-in features so every screen shares one look; the mockup files sit in a gitignored folder and are deleted when the app is done.
@@ -48,7 +52,28 @@ Running list, one entry per decision. Becomes the design and security section of
 - **One `loanActivity` table with a `kind` field** for request notifications and overdue reminders. One place to read a loan's recent automation.
 - **The seed is an internal mutation that does nothing if the demo users already exist**, with dates set from the day it runs. A reviewer sees every status without creating anything. It checks for a demo user, not "any user", so it still works after the reviewer has signed in.
 - **"Today" comes from `Intl.DateTimeFormat` with the app timezone; days are added in UTC.** No date library. Adding days to a calendar date in UTC can't be shifted by daylight saving.
+- **One `todayInAppTimezone()` helper reads `APP_TIMEZONE` itself.** Callers pass no timezone, so the seed and the board queries cannot disagree on what "today" is.
 - **Date tests pin the clock to an instant where UTC and the app timezone disagree.** A test that reused the code's own "today" logic would pass even when that logic is wrong.
+
+- **Category and condition are radio groups, not selects**, as the mockup draws them. Native radios in a `fieldset` with a `legend` keep them labelled and keyboard reachable.
+
+- **"Lent out" is one index read of approved loans that have started.** The board never queries loans per tool, and the end date is ignored, so an overdue tool still shows as out until the lender marks it returned.
+- **A lent-out tool carries one optional `lentOut: { until, isOverdue }` object.** "Out" and "overdue" can never appear one without the other.
+- **The signed-in board works out `isMine` and the lender's first name on the server.** No owner id, user id, email or full name reaches the browser; the `returns` validator rejects anything extra.
+- **`'YYYY-MM-DD'` dates are formatted in the browser in UTC.** The string is a calendar day, so no viewer timezone can move it.
+- **The board greets with "Hi", not "Good morning".** Time of day differs between the server and browser render.
+
+- **`tools.update` answers "Tool not found" for a missing or removed tool, before the ownership check.** Editing is allowed while a tool is lent out; only removal is blocked by a loan.
+- **The edit form holds the id of the tool being edited and reads the tool from the live list.** A tool removed elsewhere drops the form back to "List a tool" with no stale copy; a `key` per tool resets the fields without an effect.
+
+- **A lender's remove (`tools.removeOwn`) is refused while any approved loan exists, started or not, and declines pending requests in the same transaction.** Every check throws before the first write, so a refused removal changes nothing. The admin's remove in F5 is a separate function.
+- **One `requireOwnTool` helper decides "exists, not removed, and yours"** for every lender change, so update and remove cannot drift apart.
+- **The two-step remove is one button whose label changes, with no `confirm()`.** Focus stays on it between steps; after a removal it moves to the form heading, since the tool's row is gone.
+
+- **My tools reads each of the lender's tools' loans by `by_tool`; the board does one approved-loans read for every tool.** One lender has few tools, and My tools also needs the waiting-request count per tool.
+- **One server rule each for "lent out" and "first name", shared by the board and My tools.** The two screens cannot disagree on whether a tool is out, and no full name leaves Convex.
+- **An overdue tool reads "due back <day>" on both screens** ("Out, due back…" on the board, "With Liam, due back…" on My tools), so "until" never names a day that has passed.
+- **Timezone tests run in both directions**: an app timezone behind UTC (Toronto) and one ahead of it (Auckland).
 
 ## Data minimisation
 
@@ -68,6 +93,10 @@ Running list, one entry per decision. Becomes the design and security section of
 - **The reminder duplicate check reads the `loanId + date` index and filters on `kind`.** A loan has only a few activity rows a day, so a filter is cheap, and keeping `kind` out of the index keeps the per-loan activity list sorted by date.
 - **`/overdue` skips loans already reminded today.** A manual rerun never sends a second email.
 - **n8n writes back once per loan per run, `sent` or `failed`.** Retries happen on the send node; a final failure also triggers the error workflow.
+
+## Known limits
+
+- **The board and My tools may show a stale "out" or "overdue" across midnight.** Their queries work out today on the server, and Convex reruns a query only when its data changes. A page left open overnight catches up on the next write or reload. Reminders are unaffected: n8n asks the server fresh each run. Fix if it matters: return raw dates and compare in the browser.
 
 ## Later, if it grows
 

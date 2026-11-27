@@ -9,7 +9,9 @@
  */
 
 import type * as lib_auth from "../lib/auth.js";
+import type * as lib_dates from "../lib/dates.js";
 import type * as seed from "../seed.js";
+import type * as toolLimits from "../toolLimits.js";
 import type * as tools from "../tools.js";
 import type * as users from "../users.js";
 
@@ -21,7 +23,9 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   "lib/auth": typeof lib_auth;
+  "lib/dates": typeof lib_dates;
   seed: typeof seed;
+  toolLimits: typeof toolLimits;
   tools: typeof tools;
   users: typeof users;
 }>;
