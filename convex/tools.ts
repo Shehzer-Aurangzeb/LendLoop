@@ -1,7 +1,7 @@
 import { ConvexError, v } from 'convex/values'
 import { mutation, query } from '@/convex/_generated/server'
-import type { MutationCtx } from '@/convex/_generated/server'
-import type { Id } from '@/convex/_generated/dataModel'
+import type { MutationCtx, QueryCtx } from '@/convex/_generated/server'
+import type { Doc, Id } from '@/convex/_generated/dataModel'
 import { requireUser } from '@/convex/lib/auth'
 import { todayInAppTimezone } from '@/convex/lib/dates'
 import { categoryValidator, conditionValidator } from '@/convex/schema'
@@ -49,6 +49,21 @@ const requireOwnTool = async (ctx: MutationCtx, toolId: Id<'tools'>) => {
   return tool
 }
 
+// The full name never leaves the server; neighbours see only this.
+const firstNameOf = (user: Doc<'users'> | null | undefined) =>
+  user ? user.name.trim().split(/\s+/)[0] : ''
+
+// Lent out: approved and started. The end date only decides overdue, never "out".
+const isLentOutOn = (loan: Doc<'loans'>, today: string) =>
+  loan.status === 'approved' && loan.startDate <= today
+
+const loadUsersById = async (ctx: QueryCtx, ids: Id<'users'>[]) =>
+  new Map(
+    await Promise.all(
+      [...new Set(ids)].map(async (id) => [id, await ctx.db.get(id)] as const)
+    )
+  )
+
 // Public on purpose: the signed-out tool list, so no auth helper call.
 export const listPublic = query({
   args: {},
@@ -74,25 +89,69 @@ export const listMine = query({
       category: categoryValidator,
       condition: conditionValidator,
       description: v.string(),
+      lentOut: v.optional(
+        v.object({
+          until: v.string(),
+          isOverdue: v.boolean(),
+          borrowerFirstName: v.string(),
+        })
+      ),
+      waitingRequestCount: v.number(),
     })
   ),
   handler: async (ctx) => {
     const user = await requireUser(ctx)
-    const tools = await ctx.db
-      .query('tools')
-      .withIndex('by_owner', (q) => q.eq('ownerId', user._id))
-      .collect()
-
-    return tools
+    const today = todayInAppTimezone()
+    const tools = (
+      await ctx.db
+        .query('tools')
+        .withIndex('by_owner', (q) => q.eq('ownerId', user._id))
+        .collect()
+    )
       .filter((tool) => tool.removedAt === undefined)
       .sort((a, b) => a.name.localeCompare(b.name))
-      .map(({ _id, name, category, condition, description }) => ({
+    // One by_tool read per tool is fine: My tools is one lender's few tools.
+    const rows = await Promise.all(
+      tools.map(async (tool) => {
+        const loans = await ctx.db
+          .query('loans')
+          .withIndex('by_tool', (q) => q.eq('toolId', tool._id))
+          .collect()
+
+        return {
+          tool,
+          outLoan: loans.find((loan) => isLentOutOn(loan, today)),
+          waitingRequestCount: loans.filter(
+            (loan) => loan.status === 'requested'
+          ).length,
+        }
+      })
+    )
+    const borrowers = await loadUsersById(
+      ctx,
+      rows.flatMap(({ outLoan }) => (outLoan ? [outLoan.borrowerId] : []))
+    )
+
+    return rows.map(({ tool, outLoan, waitingRequestCount }) => {
+      const { _id, name, category, condition, description } = tool
+      const borrower = outLoan && borrowers.get(outLoan.borrowerId)
+
+      return {
         _id,
         name,
         category,
         condition,
         description,
-      }))
+        ...(outLoan && {
+          lentOut: {
+            until: outLoan.endDate,
+            isOverdue: outLoan.endDate < today,
+            borrowerFirstName: firstNameOf(borrower),
+          },
+        }),
+        waitingRequestCount,
+      }
+    })
   },
 })
 
@@ -107,7 +166,6 @@ export const listForBoard = query({
       lenderFirstName: v.string(),
       isLenderTrusted: v.boolean(),
       isMine: v.boolean(),
-      // Present only while the tool is lent out.
       lentOut: v.optional(
         v.object({ until: v.string(), isOverdue: v.boolean() })
       ),
@@ -126,14 +184,12 @@ export const listForBoard = query({
       .collect()
     const outUntilByTool = new Map(
       approvedLoans
-        .filter((loan) => loan.startDate <= today)
+        .filter((loan) => isLentOutOn(loan, today))
         .map((loan) => [loan.toolId, loan.endDate])
     )
-    const lenderIds = [...new Set(tools.map((tool) => tool.ownerId))]
-    const lenders = new Map(
-      await Promise.all(
-        lenderIds.map(async (id) => [id, await ctx.db.get(id)] as const)
-      )
+    const lenders = await loadUsersById(
+      ctx,
+      tools.map((tool) => tool.ownerId)
     )
 
     return tools
@@ -147,7 +203,7 @@ export const listForBoard = query({
           name,
           category,
           condition,
-          lenderFirstName: lender?.name.trim().split(/\s+/)[0] ?? '',
+          lenderFirstName: firstNameOf(lender),
           isLenderTrusted: lender?.isTrustedLender ?? false,
           isMine: ownerId === user._id,
           ...(outUntil !== undefined && {

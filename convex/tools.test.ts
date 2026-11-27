@@ -217,8 +217,103 @@ describe('tools.listMine', () => {
       'condition',
       'description',
       'name',
+      'waitingRequestCount',
     ])
     expect(tool).toMatchObject(newTool)
+  })
+})
+
+// 20:00 UTC on the 26th is already the 27th in Auckland, so a UTC "today" fails.
+const myToolsNow = '2026-11-26T20:00:00Z'
+
+const listAshasDrillWithLoans = async (loans: NewLoan[]) => {
+  const t = convexTest(schema, modules)
+  const asAsha = await signUp(t, asha)
+
+  await signUp(t, ben)
+  const toolId = await asAsha.mutation(api.tools.create, newTool)
+
+  await insertLoansFromBen(t, toolId, loans)
+
+  const [drill] = await asAsha.query(api.tools.listMine)
+
+  return drill
+}
+
+describe('tools.listMine loan status', () => {
+  beforeEach(() => {
+    vi.stubEnv('APP_TIMEZONE', 'Pacific/Auckland')
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(myToolsNow))
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllEnvs()
+  })
+
+  test('a tool with no loans has no lentOut and no waiting requests', async () => {
+    const drill = await listAshasDrillWithLoans([])
+
+    expect(drill.lentOut).toBeUndefined()
+    expect(drill.waitingRequestCount).toBe(0)
+  })
+
+  test("an out tool gives only the borrower's first name and the end date", async () => {
+    const drill = await listAshasDrillWithLoans([
+      { startDate: '2026-11-24', endDate: '2026-11-30', status: 'approved' },
+    ])
+
+    expect(Object.keys(drill.lentOut!).sort()).toEqual([
+      'borrowerFirstName',
+      'isOverdue',
+      'until',
+    ])
+    expect(drill.lentOut).toEqual({
+      borrowerFirstName: 'Ben',
+      until: '2026-11-30',
+      isOverdue: false,
+    })
+  })
+
+  test('an approved loan ending yesterday in APP_TIMEZONE is overdue, though UTC says today', async () => {
+    const drill = await listAshasDrillWithLoans([
+      { startDate: '2026-11-20', endDate: '2026-11-26', status: 'approved' },
+    ])
+
+    expect(drill.lentOut).toMatchObject({
+      until: '2026-11-26',
+      isOverdue: true,
+    })
+  })
+
+  test('a loan starting today in APP_TIMEZONE is out, though UTC says tomorrow', async () => {
+    const drill = await listAshasDrillWithLoans([
+      { startDate: '2026-11-27', endDate: '2026-11-30', status: 'approved' },
+    ])
+
+    expect(drill.lentOut).toMatchObject({ until: '2026-11-30' })
+  })
+
+  test('a future approved loan is not out', async () => {
+    const drill = await listAshasDrillWithLoans([
+      { startDate: '2026-11-28', endDate: '2026-11-30', status: 'approved' },
+    ])
+
+    expect(drill.lentOut).toBeUndefined()
+  })
+
+  test('waitingRequestCount counts only requested loans', async () => {
+    const drill = await listAshasDrillWithLoans([
+      { startDate: '2026-12-01', endDate: '2026-12-02', status: 'requested' },
+      { startDate: '2026-12-03', endDate: '2026-12-04', status: 'requested' },
+      { startDate: '2026-11-20', endDate: '2026-11-21', status: 'declined' },
+      { startDate: '2026-11-20', endDate: '2026-11-21', status: 'returned' },
+      { startDate: '2026-11-20', endDate: '2026-11-21', status: 'cancelled' },
+      { startDate: '2026-11-24', endDate: '2026-11-30', status: 'approved' },
+    ])
+
+    expect(drill.waitingRequestCount).toBe(2)
   })
 })
 

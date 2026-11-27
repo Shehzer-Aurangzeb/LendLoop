@@ -69,6 +69,10 @@ Running list, one entry per decision. Becomes the design and security section of
 - **One `requireOwnTool` helper decides "exists, not removed, and yours"** for every lender change, so update and remove cannot drift apart.
 - **The two-step remove is one button whose label changes, with no `confirm()`.** Focus stays on it between steps; after a removal it moves to the form heading, since the tool's row is gone.
 
+- **My tools reads each of the lender's tools' loans by `by_tool`; the board does one approved-loans read for every tool.** One lender has few tools, and My tools also needs the waiting-request count per tool.
+- **One server rule each for "lent out" and "first name", shared by the board and My tools.** The two screens cannot disagree on whether a tool is out, and no full name leaves Convex.
+- **Timezone tests run in both directions**: an app timezone behind UTC (Toronto) and one ahead of it (Auckland).
+
 ## Data minimisation
 
 - **The public list shows tool name and category only.** Strangers do not need to know which house has a drill.

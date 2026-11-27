@@ -55,7 +55,7 @@ const ToolForm = ({
   onRemoved,
 }: ToolFormProps) => {
   const { createTool, updateTool } = useOwnToolChanges()
-  // Picked field by field: listMine rows will carry loan status too, which update's validator rejects.
+  // Picked field by field: listMine rows carry loan status, which update's validator rejects.
   const [tool, setTool] = useState<ToolFields>(() =>
     toolBeingEdited
       ? {
