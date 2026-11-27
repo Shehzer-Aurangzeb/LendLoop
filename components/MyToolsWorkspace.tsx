@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import MyToolList, { editToolButtonId } from '@/components/MyToolList'
-import MyToolListSkeleton from '@/components/MyToolListSkeleton'
+import ListSkeleton from '@/components/ListSkeleton'
 import ToolForm, { toolFormHeadingId } from '@/components/ToolForm'
 import { useQueryOnceUserReady } from '@/components/useQueryOnceUserReady'
 import { api } from '@/convex/_generated/api'
@@ -42,7 +42,7 @@ const MyToolsWorkspace = () => {
     <div className="flex flex-wrap items-start gap-10">
       <div className="flex min-w-0 flex-[999_1_460px] flex-col">
         {tools === undefined ? (
-          <MyToolListSkeleton />
+          <ListSkeleton label="Loading your tools" rowHeightPx={102} />
         ) : (
           <MyToolList tools={tools} onEdit={startEditing} />
         )}

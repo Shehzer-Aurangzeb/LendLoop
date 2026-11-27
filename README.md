@@ -40,4 +40,16 @@ Needs Node and pnpm. Convex runs as a local deployment, so no Convex account is 
    npx convex run seed:run
    ```
 
-7. Open http://localhost:3000 and sign in. To try admin features, set your own `role` to `"admin"` in the `users` table of the Convex dashboard.
+7. Open http://localhost:3000 and sign in.
+
+## Make the demo admin
+
+1. Sign in once, so your row exists in the `users` table.
+2. With `pnpm dev` running, open the local Convex dashboard:
+
+   ```bash
+   npx convex dashboard
+   ```
+
+3. Go to **Data**, then the `users` table, and edit your row: set `role` to `"admin"`.
+4. The Admin link appears in the header without a reload.

@@ -54,7 +54,7 @@ const ToolForm = ({
   onEditingDone,
   onRemoved,
 }: ToolFormProps) => {
-  const { createTool, updateTool } = useOwnToolChanges()
+  const { createTool, updateTool, removeTool } = useOwnToolChanges()
   // Picked field by field: listMine rows carry loan status, which update's validator rejects.
   const [tool, setTool] = useState<ToolFields>(() =>
     toolBeingEdited
@@ -182,12 +182,15 @@ const ToolForm = ({
             </button>
           )}
         </div>
-        {editingToolId && (
-          <RemoveToolButton
-            toolId={editingToolId}
-            onRemoved={onRemoved}
-            onRefused={setError}
-          />
+        {toolBeingEdited && (
+          <div className="border-t border-line pt-5">
+            <RemoveToolButton
+              toolName={toolBeingEdited.name}
+              removeTool={() => removeTool(toolBeingEdited._id)}
+              onRemoved={onRemoved}
+              onRefused={setError}
+            />
+          </div>
         )}
       </form>
     </section>

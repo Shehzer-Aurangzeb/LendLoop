@@ -1,6 +1,7 @@
 'use client'
 
 import InlineError from '@/components/InlineError'
+import { outlineButtonClass } from '@/components/outlineButtonClass'
 import { useLoanChange } from '@/components/useLoanChange'
 import type { RowAfterChange } from '@/components/useLoanChange'
 
@@ -26,7 +27,7 @@ const LoanChangeButton = ({
         type="button"
         aria-disabled={isBusy}
         onClick={(event) => run(change, event.currentTarget)}
-        className="min-h-[44px] cursor-pointer rounded-full border border-ink bg-surface px-[18px] text-sm font-semibold text-ink hover:bg-ground aria-disabled:cursor-wait aria-disabled:opacity-70"
+        className={outlineButtonClass}
       >
         {label}
         <span className="sr-only"> {screenReaderDetail}</span>

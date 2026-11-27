@@ -10,6 +10,14 @@ export const categoryValidator = v.union(
   v.literal('other')
 )
 
+export const loanStatusValidator = v.union(
+  v.literal('requested'),
+  v.literal('approved'),
+  v.literal('declined'),
+  v.literal('returned'),
+  v.literal('cancelled')
+)
+
 export const conditionValidator = v.union(
   v.literal('like-new'),
   v.literal('good'),
@@ -45,13 +53,7 @@ export default defineSchema({
     // 'YYYY-MM-DD' strings sort as dates, which the endDate index relies on.
     startDate: v.string(),
     endDate: v.string(),
-    status: v.union(
-      v.literal('requested'),
-      v.literal('approved'),
-      v.literal('declined'),
-      v.literal('returned'),
-      v.literal('cancelled')
-    ),
+    status: loanStatusValidator,
   })
     .index('by_tool', ['toolId'])
     .index('by_borrower', ['borrowerId'])

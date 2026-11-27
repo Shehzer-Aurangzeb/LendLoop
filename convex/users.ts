@@ -1,6 +1,10 @@
 import { v } from 'convex/values'
-import { mutation } from '@/convex/_generated/server'
-import { findUserByToken, requireIdentity } from '@/convex/lib/auth'
+import { mutation, query } from '@/convex/_generated/server'
+import {
+  findSignedInUser,
+  findUserByToken,
+  requireIdentity,
+} from '@/convex/lib/auth'
 
 export const store = mutation({
   args: {},
@@ -21,5 +25,16 @@ export const store = mutation({
       role: 'user',
       isTrustedLender: false,
     })
+  },
+})
+
+// A UI hint only; every admin function checks the role itself with requireAdmin.
+export const amIAdmin = query({
+  args: {},
+  returns: v.boolean(),
+  handler: async (ctx) => {
+    const user = await findSignedInUser(ctx)
+
+    return user?.role === 'admin'
   },
 })

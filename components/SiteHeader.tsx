@@ -1,6 +1,7 @@
 import { Suspense } from 'react'
 import Link from 'next/link'
 import { Show, UserButton } from '@clerk/nextjs'
+import AdminNavLink from '@/components/AdminNavLink'
 import LoansNavLink from '@/components/LoansNavLink'
 import LogoMark from '@/components/LogoMark'
 import SignInCta from '@/components/SignInCta'
@@ -43,6 +44,7 @@ const SiteHeader = () => (
               My tools
             </Link>
             <LoansNavLink className={linkClass} />
+            <AdminNavLink className={linkClass} />
             <UserButton
               appearance={{
                 // Clerk's default avatar is 28px; 44px meets the touch target.

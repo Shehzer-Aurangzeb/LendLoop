@@ -1,7 +1,7 @@
 'use client'
 
 import { useId } from 'react'
-import LoanListSkeleton from '@/components/LoanListSkeleton'
+import ListSkeleton from '@/components/ListSkeleton'
 import SectionHeading from '@/components/SectionHeading'
 import WaitingRequestCard from '@/components/WaitingRequestCard'
 import { useQueryOnceUserReady } from '@/components/useQueryOnceUserReady'
@@ -20,7 +20,7 @@ const WaitingSection = () => {
         </span>
       </div>
       {requests === undefined ? (
-        <LoanListSkeleton />
+        <ListSkeleton label="Loading your loans" rowHeightPx={88} />
       ) : requests.length === 0 ? (
         <p className="text-[15px] text-ink-muted">No requests waiting.</p>
       ) : (

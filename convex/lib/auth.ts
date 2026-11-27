@@ -18,6 +18,13 @@ export const findUserByToken = (ctx: QueryCtx, tokenIdentifier: string) =>
     .withIndex('by_token', (q) => q.eq('tokenIdentifier', tokenIdentifier))
     .unique()
 
+// Never throws: for UI hints like amIAdmin, where signed out just means "no".
+export const findSignedInUser = async (ctx: QueryCtx) => {
+  const identity = await ctx.auth.getUserIdentity()
+
+  return identity ? await findUserByToken(ctx, identity.tokenIdentifier) : null
+}
+
 export const requireUser = async (ctx: QueryCtx) => {
   const identity = await requireIdentity(ctx)
   const user = await findUserByToken(ctx, identity.tokenIdentifier)
