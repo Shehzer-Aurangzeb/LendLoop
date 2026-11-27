@@ -43,6 +43,12 @@ Running list, one entry per decision. Becomes the design and security section of
 ## Data minimisation
 
 - **The public list shows tool name and category only.** Strangers do not need to know which house has a drill.
+- **`tools.listPublic` maps each tool to `{ name, category }` and declares a `returns` validator for that shape.** Convex rejects the response if an extra field slips in, so a later schema change cannot leak data by accident.
+- **The public list returns no `_id`.** Nothing public addresses a single tool, so the React key is position plus name.
+- **The category union is defined once and shared by the schema and the public query.** The two cannot drift apart.
+- **The public page reads the list with `useQuery`, a live subscription.** A tool added while a visitor has the page open appears without a reload. `fetchQuery` would be a one-off snapshot.
+- **A failed public list shows a short message from a Next.js `catchError` boundary.** `useQuery` throws on failure; a function boundary needs no class and no new dependency.
+- **The category filter runs in the browser over the full list.** The list is small and already loaded, so switching is instant.
 - **n8n gets only the fields a message needs.**
 
 ## Integration
