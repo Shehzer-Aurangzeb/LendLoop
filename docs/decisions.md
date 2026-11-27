@@ -28,6 +28,7 @@ Running list, one entry per decision. Becomes the design and security section of
 - **`requireIdentity` is separate from `requireUser`.** `users.store` runs before a users row exists, so it needs "signed in" without "has a row". All three helpers live in `convex/lib/auth.ts`, and no public function reads `ctx.auth` directly.
 - **`requireUser` and `requireAdmin` throw on the server.** The UI also waits for `users.store` before running user queries, but that is only so the screen looks right. The server check is what protects the data.
 
+- **Signed-in neighbours never see the landing page.** Sign-in and sign-up land on `/board` (`forceRedirectUrl` on the sign-in button), and `proxy.ts` sends a signed-in visit to `/` to `/board` before anything renders, so there is no flash and the landing page stays static for visitors. Convenience only; Clerk keeps real protection next to the resource.
 - **Signed-in pages redirect with `auth.protect()` in the page, not a route matcher in `proxy.ts`.** Clerk 7 deprecates `createRouteMatcher` in favour of checks next to the resource. The redirect is still only convenience; `requireUser` in Convex is the real check.
 - **Tool text is trimmed and length-checked in the Convex mutation before the write.** The browser's `maxLength` reads the same limits from one import-free file, so client and server cannot drift and no server code ships to the browser.
 

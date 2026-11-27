@@ -1,8 +1,13 @@
+import { NextResponse } from 'next/server'
 import { clerkMiddleware } from '@clerk/nextjs/server'
 
-// Protects nothing on its own yet. Route redirects are convenience only;
-// every permission check lives in Convex functions.
-export default clerkMiddleware()
+// Route redirects are convenience only; every permission check lives in Convex functions.
+export default clerkMiddleware(async (auth, request) => {
+  // The landing page only invites sign-in, so a signed-in neighbour goes straight to the board.
+  if (request.nextUrl.pathname === '/' && (await auth()).userId) {
+    return NextResponse.redirect(new URL('/board', request.url))
+  }
+})
 
 export const config = {
   matcher: [
