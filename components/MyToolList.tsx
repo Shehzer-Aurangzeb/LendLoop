@@ -4,10 +4,11 @@ import { categoryLabels } from '@/components/categoryLabels'
 import CategoryTile from '@/components/CategoryTile'
 import { conditionLabels } from '@/components/conditionLabels'
 import MyToolListSkeleton from '@/components/MyToolListSkeleton'
-import { useMyTools } from '@/components/useMyTools'
+import { useQueryOnceUserReady } from '@/components/useQueryOnceUserReady'
+import { api } from '@/convex/_generated/api'
 
 const MyToolList = () => {
-  const tools = useMyTools()
+  const tools = useQueryOnceUserReady(api.tools.listMine)
 
   if (tools === undefined) {
     return <MyToolListSkeleton />

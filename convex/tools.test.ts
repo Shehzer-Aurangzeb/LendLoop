@@ -1,6 +1,6 @@
 import { convexTest } from 'convex-test'
 import { ConvexError } from 'convex/values'
-import { describe, expect, test } from 'vitest'
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import type { TestConvex } from 'convex-test'
 import { api } from '@/convex/_generated/api'
 import type { Doc } from '@/convex/_generated/dataModel'
@@ -222,5 +222,215 @@ describe('tools.listMine', () => {
       category: 'power-tools',
       condition: 'good',
     })
+  })
+})
+
+type BoardLoan = Pick<Doc<'loans'>, 'startDate' | 'endDate' | 'status'>
+
+// 03:00 UTC on the 27th is still the 26th in Toronto, so a UTC "today" fails.
+const boardNow = '2026-11-27T03:00:00Z'
+
+const listDrillWithLoans = async (loans: BoardLoan[]) => {
+  const t = convexTest(schema, modules)
+  const asAsha = await signUp(t, asha)
+  const asBen = await signUp(t, ben)
+  const toolId = await asAsha.mutation(api.tools.create, newTool)
+
+  await t.run(async (ctx) => {
+    const tool = await ctx.db.get(toolId)
+    const borrower = await ctx.db
+      .query('users')
+      .withIndex('by_token', (q) => q.eq('tokenIdentifier', 'ben'))
+      .unique()
+
+    for (const loan of loans) {
+      await ctx.db.insert('loans', {
+        ...loan,
+        toolId,
+        lenderId: tool!.ownerId,
+        borrowerId: borrower!._id,
+      })
+    }
+  })
+
+  const [drill] = await asBen.query(api.tools.listForBoard)
+
+  return drill
+}
+
+describe('tools.listForBoard', () => {
+  beforeEach(() => {
+    vi.stubEnv('APP_TIMEZONE', 'America/Toronto')
+    // Fake Date only, so convex-test's own timers keep running.
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date(boardNow))
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    vi.unstubAllEnvs()
+  })
+
+  test('a signed-out caller is refused', async () => {
+    const t = convexTest(schema, modules)
+
+    await expect(t.query(api.tools.listForBoard)).rejects.toThrow(
+      'Please sign in'
+    )
+  })
+
+  test('returns every tool not removed, A to Z', async () => {
+    const t = convexTest(schema, modules)
+    const asAsha = await signUp(t, asha)
+    const asBen = await signUp(t, ben)
+
+    await asAsha.mutation(api.tools.create, { ...newTool, name: 'Tent' })
+    await asBen.mutation(api.tools.create, { ...newTool, name: 'Axe' })
+    const oldSawId = await asAsha.mutation(api.tools.create, {
+      ...newTool,
+      name: 'Old saw',
+    })
+
+    await t.run((ctx) => ctx.db.patch(oldSawId, { removedAt: Date.now() }))
+
+    const tools = await asBen.query(api.tools.listForBoard)
+
+    expect(tools.map((tool) => tool.name)).toEqual(['Axe', 'Tent'])
+  })
+
+  test('an available tool has exactly the declared keys, nothing private', async () => {
+    const t = convexTest(schema, modules)
+    const asAsha = await signUp(t, asha)
+    const asBen = await signUp(t, ben)
+
+    await asAsha.mutation(api.tools.create, newTool)
+
+    const [tool] = await asBen.query(api.tools.listForBoard)
+
+    expect(Object.keys(tool).sort()).toEqual([
+      '_id',
+      'category',
+      'condition',
+      'isLenderTrusted',
+      'isMine',
+      'lenderFirstName',
+      'name',
+    ])
+    expect(tool).toMatchObject({
+      name: 'Drill',
+      category: 'power-tools',
+      condition: 'good',
+      lenderFirstName: 'Asha',
+    })
+  })
+
+  test('isMine is true only for the caller\'s tools', async () => {
+    const t = convexTest(schema, modules)
+    const asAsha = await signUp(t, asha)
+    const asBen = await signUp(t, ben)
+
+    await asAsha.mutation(api.tools.create, { ...newTool, name: 'Axe' })
+    await asBen.mutation(api.tools.create, { ...newTool, name: 'Ladder' })
+
+    const tools = await asBen.query(api.tools.listForBoard)
+
+    expect(tools.map(({ name, isMine }) => ({ name, isMine }))).toEqual([
+      { name: 'Axe', isMine: false },
+      { name: 'Ladder', isMine: true },
+    ])
+  })
+
+  test('isLenderTrusted matches the lender', async () => {
+    const t = convexTest(schema, modules)
+    const asAsha = await signUp(t, asha)
+    const asBen = await signUp(t, ben)
+
+    await asAsha.mutation(api.tools.create, { ...newTool, name: 'Axe' })
+    await asBen.mutation(api.tools.create, { ...newTool, name: 'Ladder' })
+    await t.run(async (ctx) => {
+      const ashaUser = await ctx.db
+        .query('users')
+        .withIndex('by_token', (q) => q.eq('tokenIdentifier', 'asha'))
+        .unique()
+
+      await ctx.db.patch(ashaUser!._id, { isTrustedLender: true })
+    })
+
+    const tools = await asBen.query(api.tools.listForBoard)
+
+    expect(
+      tools.map(({ lenderFirstName, isLenderTrusted }) => ({
+        lenderFirstName,
+        isLenderTrusted,
+      }))
+    ).toEqual([
+      { lenderFirstName: 'Asha', isLenderTrusted: true },
+      { lenderFirstName: 'Ben', isLenderTrusted: false },
+    ])
+  })
+
+  test('a lent-out tool has exactly the declared keys, lentOut included', async () => {
+    const drill = await listDrillWithLoans([
+      { startDate: '2026-11-24', endDate: '2026-11-30', status: 'approved' },
+    ])
+
+    expect(Object.keys(drill).sort()).toEqual([
+      '_id',
+      'category',
+      'condition',
+      'isLenderTrusted',
+      'isMine',
+      'lenderFirstName',
+      'lentOut',
+      'name',
+    ])
+    expect(Object.keys(drill.lentOut!).sort()).toEqual([
+      'isOverdue',
+      'until',
+    ])
+  })
+
+  test('a started approved loan makes the tool out until its end date', async () => {
+    const drill = await listDrillWithLoans([
+      { startDate: '2026-11-24', endDate: '2026-11-30', status: 'approved' },
+    ])
+
+    expect(drill.lentOut).toEqual({ until: '2026-11-30', isOverdue: false })
+  })
+
+  test('an approved loan past its end date is out and overdue', async () => {
+    const drill = await listDrillWithLoans([
+      { startDate: '2026-11-20', endDate: '2026-11-25', status: 'approved' },
+    ])
+
+    expect(drill.lentOut).toEqual({ until: '2026-11-25', isOverdue: true })
+  })
+
+  test.each([
+    ['only a pending request', 'requested', '2026-11-24'],
+    ['a future approved loan', 'approved', '2026-11-28'],
+    ['a returned loan', 'returned', '2026-11-24'],
+  ] as const)('a tool with %s is available', async (_, status, startDate) => {
+    const drill = await listDrillWithLoans([
+      { startDate, endDate: '2026-11-30', status },
+    ])
+
+    expect(drill.lentOut).toBeUndefined()
+  })
+
+  test('a loan starting tomorrow in APP_TIMEZONE is not out, though it is today in UTC', async () => {
+    const drill = await listDrillWithLoans([
+      { startDate: '2026-11-27', endDate: '2026-11-30', status: 'approved' },
+    ])
+
+    expect(drill.lentOut).toBeUndefined()
+  })
+
+  test('a loan ending today in APP_TIMEZONE is out but not overdue, though UTC says yesterday', async () => {
+    const drill = await listDrillWithLoans([
+      { startDate: '2026-11-26', endDate: '2026-11-26', status: 'approved' },
+    ])
+
+    expect(drill.lentOut).toEqual({ until: '2026-11-26', isOverdue: false })
   })
 })

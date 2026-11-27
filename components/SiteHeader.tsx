@@ -31,6 +31,9 @@ const SiteHeader = () => (
         <SignInCta label="Sign in" look="outline" />
         <Suspense>
           <Show when="signed-in">
+            <Link href="/board" className={`inline-flex ${linkClass}`}>
+              Board
+            </Link>
             <Link href="/my-tools" className={`inline-flex ${linkClass}`}>
               My tools
             </Link>

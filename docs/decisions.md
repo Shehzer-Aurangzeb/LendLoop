@@ -56,6 +56,12 @@ Running list, one entry per decision. Becomes the design and security section of
 
 - **Category and condition are radio groups, not selects**, as the mockup draws them. Native radios in a `fieldset` with a `legend` keep them labelled and keyboard reachable.
 
+- **"Lent out" is one index read of approved loans that have started.** The board never queries loans per tool, and the end date is ignored, so an overdue tool still shows as out until the lender marks it returned.
+- **A lent-out tool carries one optional `lentOut: { until, isOverdue }` object.** "Out" and "overdue" can never appear one without the other.
+- **The signed-in board works out `isMine` and the lender's first name on the server.** No owner id, user id, email or full name reaches the browser; the `returns` validator rejects anything extra.
+- **`'YYYY-MM-DD'` dates are formatted in the browser in UTC.** The string is a calendar day, so no viewer timezone can move it.
+- **The board greets with "Hi", not "Good morning".** Time of day differs between the server and browser render.
+
 ## Data minimisation
 
 - **The public list shows tool name and category only.** Strangers do not need to know which house has a drill.

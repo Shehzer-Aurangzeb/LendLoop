@@ -1,6 +1,7 @@
 import { ConvexError, v } from 'convex/values'
 import { mutation, query } from '@/convex/_generated/server'
 import { requireUser } from '@/convex/lib/auth'
+import { todayInAppTimezone } from '@/convex/lib/dates'
 import { categoryValidator, conditionValidator } from '@/convex/schema'
 import {
   TOOL_DESCRIPTION_MAX_LENGTH,
@@ -73,6 +74,68 @@ export const listMine = query({
         category,
         condition,
       }))
+  },
+})
+
+export const listForBoard = query({
+  args: {},
+  returns: v.array(
+    v.object({
+      _id: v.id('tools'),
+      name: v.string(),
+      category: categoryValidator,
+      condition: conditionValidator,
+      lenderFirstName: v.string(),
+      isLenderTrusted: v.boolean(),
+      isMine: v.boolean(),
+      // Present only while the tool is lent out.
+      lentOut: v.optional(
+        v.object({ until: v.string(), isOverdue: v.boolean() })
+      ),
+    })
+  ),
+  handler: async (ctx) => {
+    const user = await requireUser(ctx)
+    const today = todayInAppTimezone()
+    const tools = (await ctx.db.query('tools').collect()).filter(
+      (tool) => tool.removedAt === undefined
+    )
+    // One read for the whole board, never a loans query per tool.
+    const approvedLoans = await ctx.db
+      .query('loans')
+      .withIndex('by_status_and_endDate', (q) => q.eq('status', 'approved'))
+      .collect()
+    const outUntilByTool = new Map(
+      approvedLoans
+        .filter((loan) => loan.startDate <= today)
+        .map((loan) => [loan.toolId, loan.endDate])
+    )
+    const lenderIds = [...new Set(tools.map((tool) => tool.ownerId))]
+    const lenders = new Map(
+      await Promise.all(
+        lenderIds.map(async (id) => [id, await ctx.db.get(id)] as const)
+      )
+    )
+
+    return tools
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map(({ _id, name, category, condition, ownerId }) => {
+        const lender = lenders.get(ownerId)
+        const outUntil = outUntilByTool.get(_id)
+
+        return {
+          _id,
+          name,
+          category,
+          condition,
+          lenderFirstName: lender?.name.trim().split(/\s+/)[0] ?? '',
+          isLenderTrusted: lender?.isTrustedLender ?? false,
+          isMine: ownerId === user._id,
+          ...(outUntil !== undefined && {
+            lentOut: { until: outUntil, isOverdue: outUntil < today },
+          }),
+        }
+      })
   },
 })
 
