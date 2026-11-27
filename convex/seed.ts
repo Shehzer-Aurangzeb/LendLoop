@@ -2,6 +2,7 @@ import type { WithoutSystemFields } from 'convex/server'
 import { v } from 'convex/values'
 import type { Doc, Id } from './_generated/dataModel'
 import { env, internalMutation } from './_generated/server'
+import { findUserByToken } from './lib/auth'
 
 type DemoUserKey = 'maya' | 'omar' | 'priya' | 'liam' | 'chen' | 'sofia'
 
@@ -15,6 +16,8 @@ type DemoTool = Omit<
 
 // Fake `seed|` token identifiers match no Clerk issuer, so nobody can sign in
 // as these users.
+const demoToken = (key: DemoUserKey) => `seed|${key}`
+
 const demoUsers: Record<DemoUserKey, { isTrustedLender: boolean }> = {
   maya: { isTrustedLender: true },
   omar: { isTrustedLender: false },
@@ -265,10 +268,11 @@ export const run = internalMutation({
   args: {},
   returns: v.union(v.literal('seeded'), v.literal('skipped')),
   handler: async (ctx) => {
-    // Any user row means the deployment is in use, so the seed never mixes in.
-    const anyUser = await ctx.db.query('users').first()
+    // Real sign-ins don't count, so the seed works before or after one.
+    const isAlreadySeeded =
+      (await findUserByToken(ctx, demoToken('maya'))) !== null
 
-    if (anyUser) {
+    if (isAlreadySeeded) {
       return 'skipped'
     }
 
@@ -278,7 +282,7 @@ export const run = internalMutation({
 
     for (const [key, { isTrustedLender }] of Object.entries(demoUsers)) {
       userIds[key as DemoUserKey] = await ctx.db.insert('users', {
-        tokenIdentifier: `seed|${key}`,
+        tokenIdentifier: demoToken(key as DemoUserKey),
         name: capitalize(key),
         email: `${key}@example.com`,
         role: 'user',

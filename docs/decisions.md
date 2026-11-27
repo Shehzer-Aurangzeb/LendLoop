@@ -36,7 +36,7 @@ Running list, one entry per decision. Becomes the design and security section of
 - **Removing a tool is a soft delete (`removedAt`).** Past loans and their activity keep pointing at a real tool. Pending requests are declined, future approved loans become `cancelled`, and a loan that is out stays until it is returned.
 - **Loans copy `lenderId` from the tool.** A tool's owner never changes, so "Incoming requests" reads one index instead of joining through tools.
 - **One `loanActivity` table with a `kind` field** for request notifications and overdue reminders. One place to read a loan's recent automation.
-- **The seed is an internal mutation that does nothing if data exists**, with dates set from the day it runs. A reviewer sees every status without creating anything.
+- **The seed is an internal mutation that does nothing if the demo users already exist**, with dates set from the day it runs. A reviewer sees every status without creating anything. It checks for a demo user, not "any user", so it still works after the reviewer has signed in.
 - **"Today" comes from `Intl.DateTimeFormat` with the app timezone; days are added in UTC.** No date library. Adding days to a calendar date in UTC can't be shifted by daylight saving.
 - **Date tests pin the clock to an instant where UTC and the app timezone disagree.** A test that reused the code's own "today" logic would pass even when that logic is wrong.
 

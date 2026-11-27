@@ -1,6 +1,6 @@
 import { convexTest } from 'convex-test'
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
-import { internal } from './_generated/api'
+import { api, internal } from './_generated/api'
 import schema from './schema'
 
 const modules = import.meta.glob('./**/*.ts')
@@ -129,5 +129,14 @@ describe('seed.run', () => {
     const afterSecond = await countRows(t)
 
     expect(afterSecond).toEqual(afterFirst)
+  })
+
+  test('still seeds after a real neighbour has signed in', async () => {
+    const t = convexTest(schema, modules)
+
+    await t.withIdentity({ name: 'Real Person' }).mutation(api.users.store)
+
+    expect(await t.mutation(internal.seed.run)).toBe('seeded')
+    expect((await countRows(t)).users).toBe(7)
   })
 })
