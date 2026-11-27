@@ -48,6 +48,7 @@ Running list, one entry per decision. Becomes the design and security section of
 - **One `loanActivity` table with a `kind` field** for request notifications and overdue reminders. One place to read a loan's recent automation.
 - **The seed is an internal mutation that does nothing if the demo users already exist**, with dates set from the day it runs. A reviewer sees every status without creating anything. It checks for a demo user, not "any user", so it still works after the reviewer has signed in.
 - **"Today" comes from `Intl.DateTimeFormat` with the app timezone; days are added in UTC.** No date library. Adding days to a calendar date in UTC can't be shifted by daylight saving.
+- **One `todayInAppTimezone()` helper reads `APP_TIMEZONE` itself.** Callers pass no timezone, so the seed and the board queries cannot disagree on what "today" is.
 - **Date tests pin the clock to an instant where UTC and the app timezone disagree.** A test that reused the code's own "today" logic would pass even when that logic is wrong.
 
 ## Data minimisation
