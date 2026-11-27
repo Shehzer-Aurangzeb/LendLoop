@@ -9,7 +9,7 @@ import {
   isLentOutOn,
   isOverdueOn,
 } from '@/convex/lib/loans'
-import { loadToolSummary } from '@/convex/lib/tools'
+import { loadToolSummary, requireLiveTool } from '@/convex/lib/tools'
 import { firstNameOf, loadUsersById } from '@/convex/lib/users'
 import { categoryValidator, loanStatusValidator } from '@/convex/schema'
 
@@ -173,11 +173,9 @@ export const approve = mutation({
   returns: v.null(),
   handler: async (ctx, { loanId }) => {
     const loan = await loadRequestForItsLender(ctx, loanId)
-    const tool = await ctx.db.get(loan.toolId)
 
-    if (!tool || tool.removedAt !== undefined) {
-      throw new ConvexError('Tool not found.')
-    }
+    await requireLiveTool(ctx, loan.toolId)
+
     if (loan.startDate < todayInAppTimezone()) {
       throw new ConvexError(
         'The first day has passed. Decline this request instead.'

@@ -36,6 +36,7 @@ Rules the `pr-reviewer` agent checks every diff against. Concise rule plus a one
 ## Code
 
 - **Follow `CLAUDE.md`: My coding style, Frontend work, Comments.**
+- **When a PR adds a shared guard helper, it replaces every inline copy of that check in the same PR.** Why: two copies of an authorization or soft-delete check drift apart, and the next rule change updates only one.
 - **No new dependency without a one-line reason.**
 - **A new required Convex env var goes into `.env.example` and the README setup steps in the same PR.** Why: otherwise a fresh clone fails on a variable nobody mentioned.
 - **A live query rendered outside a page's `LoadErrorBoundary` (header, layout) has its own fallback.** Why: Convex `useQuery` throws during render, and with no boundary above it the whole layout breaks.

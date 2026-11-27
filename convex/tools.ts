@@ -37,7 +37,7 @@ const trimAndCheckToolText = (text: {
   return { name, description }
 }
 
-// For the lender's own changes; the admin's remove in F5 has its own rules.
+// For the lender's own changes; admin.removeListing has its own rules.
 const requireOwnTool = async (ctx: MutationCtx, toolId: Id<'tools'>) => {
   const user = await requireUser(ctx)
   const tool = await requireLiveTool(ctx, toolId)
