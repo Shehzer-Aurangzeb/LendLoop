@@ -147,6 +147,11 @@ Running list, one entry per decision. Becomes the design and security section of
 - **One overdue reminder per loan, not one per Borrower.** The brief says a reminder to each borrower; a Borrower with two overdue loans gets two messages. The write-back is per loan anyway, and grouping would need a second key for the idempotency check.
 - **Loan activity shows only the latest row, on the Borrower's and Lender's own lists.** It rides on `listMyBorrowing` and `listMyLentOut`, which already scope to the caller, so no new access check is needed. A request notification shows only to the person it went to, worked out from the loan's current status; an overdue reminder shows to both. The label ("Reminder sent 2 days ago") is worked out on the server because only the server knows `APP_TIMEZONE`. Waiting requests show none: their only activity is the notification the Lender is already reading.
 
+## Documentation
+
+- **The README keeps the full setup and a short version of every security, data and reliability decision; `docs/decisions.md` keeps the reasons.** A reviewer gets the whole picture from one file without reading 160 lines of decisions, and each README bullet can be traced here.
+- **The production note lists what changes, not how to build it.** Clerk webhook sync, rate limiting, cloud Convex, hosted n8n over HTTPS, a real email provider, CI and an audit log. Each is a known gap of the local demo, named so a reviewer sees it was a choice.
+
 ## Known limits
 
 - **The board, My tools, the Loans page and the admin loan list may show a stale "out" or "overdue" across midnight.** Their queries work out today on the server, and Convex reruns a query only when its data changes. The loan activity line ("Reminder sent today") has the same limit. A page left open overnight catches up on the next write or reload; until then "Mark as returned" can stay hidden on a loan that started that day. Reminders are unaffected: n8n asks the server fresh each run. Fix if it matters: return raw dates and compare in the browser.
