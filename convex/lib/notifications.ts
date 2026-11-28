@@ -13,3 +13,6 @@ export const scheduleRequestNotification = (
     event,
     attempt: 1,
   })
+
+export const isLenderTheRecipient = (event: Doc<'loans'>['status']) =>
+  event === 'requested' || event === 'cancelled'

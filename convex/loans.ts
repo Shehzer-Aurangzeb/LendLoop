@@ -124,18 +124,21 @@ export const listMyBorrowing = query({
 
     // One get per loan; a neighbour has a few dozen loans at most.
     return await Promise.all(
-      loans.map(
-        async ({ _id, toolId, lenderId, startDate, endDate, status }) => ({
-          _id,
-          ...(await loadToolSummary(ctx, toolId)),
-          lenderFirstName: firstNameOf(lenders.get(lenderId)),
-          startDate,
-          endDate,
-          status,
-          isOverdue: isOverdueOn({ status, endDate }, today),
-          latestActivity: await loadLatestActivityLine(ctx, _id, today),
-        })
-      )
+      loans.map(async (loan) => ({
+        _id: loan._id,
+        ...(await loadToolSummary(ctx, loan.toolId)),
+        lenderFirstName: firstNameOf(lenders.get(loan.lenderId)),
+        startDate: loan.startDate,
+        endDate: loan.endDate,
+        status: loan.status,
+        isOverdue: isOverdueOn(loan, today),
+        latestActivity: await loadLatestActivityLine(
+          ctx,
+          loan,
+          'borrower',
+          today
+        ),
+      }))
     )
   },
 })
@@ -350,7 +353,12 @@ export const listMyLentOut = query({
         endDate: loan.endDate,
         hasStarted: isLentOutOn(loan, today),
         isOverdue: isOverdueOn(loan, today),
-        latestActivity: await loadLatestActivityLine(ctx, loan._id, today),
+        latestActivity: await loadLatestActivityLine(
+          ctx,
+          loan,
+          'lender',
+          today
+        ),
       }))
     )
   },

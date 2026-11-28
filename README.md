@@ -94,7 +94,7 @@ Every day at 09:00 (n8n's `GENERIC_TIMEZONE`), n8n asks Convex for overdue loans
 
 2. In n8n, create a second **Crypto** credential named `LendLoop Convex secret` and set **Hmac Secret** to the `CONVEX_WEBHOOK_SECRET` value from `n8n/.env`.
 3. Import `n8n/workflows/error-handler.json` the same way as before, then **Publish** it. n8n runs it only when published.
-4. Import `n8n/workflows/overdue-reminders.json`. Open **Sign due request** and **Sign result** and select the `LendLoop Convex secret` credential if it is not already selected. In the **...** menu open **Settings** and set **Error workflow** to `LendLoop error handler`. Then **Publish** it so the 09:00 schedule runs.
+4. Import `n8n/workflows/overdue-reminders.json`. Open **Sign due request**, **Sign sent result** and **Sign failed result** and select the `LendLoop Convex secret` credential if it is not already selected. The file presets `LendLoop error handler` as its error workflow, but a UI import gives the error handler a new id, so in the **...** menu open **Settings** and pick **Error workflow** `LendLoop error handler` again. Then **Publish** it so the 09:00 schedule runs.
 5. Check that Convex answers a signed request. From `n8n/`, the output ends in `HTTP 200` and lists today's due reminders. Pass `tampered` or `stale` to see `HTTP 401`.
 
    ```bash
@@ -105,7 +105,7 @@ Every day at 09:00 (n8n's `GENERIC_TIMEZONE`), n8n asks Convex for overdue loans
 
 6. Run it now: open the workflow and click **Execute workflow**. The seed data has one overdue loan. Open the **Send mock reminder** node to read `To Maya: please return Circular saw, it was due <date>`. The loan's activity row shows in the Convex dashboard, table `loanActivity`. A second run the same day finds nothing to send.
 
-- **See a failure:** set `shouldFailOnPurpose = true` at the top of **Send mock reminder**. The node tries 3 times, 5 seconds apart, then the error branch writes `failed`. Set it back and run again: the loan is retried and its row becomes `sent`.
+- **See a failure:** set `isFailingOnPurpose = true` at the top of **Send mock reminder**. The node tries 3 times, 5 seconds apart, then the error branch writes `failed` for every due loan and **Fail run: reminders failed** ends the run in error, so `LendLoop error handler` runs too. Set it back and run again: the loans are retried and their rows become `sent`.
 - **See a crashed run:** stop `pnpm dev` and run the workflow. **Fetch due reminders** fails, so the run fails, and **Executions** shows a run of `LendLoop error handler`. Its **Log failed run** node shows the workflow name, the failed run's URL, the last node and the error message.
 - **Convex not on port 3211?** Change `convexSiteUrl` at the top of **Build due request**. It is the only place the URL is set.
 

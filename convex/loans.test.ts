@@ -1185,6 +1185,25 @@ describe('latest loan activity on the borrowing and lent-out lists', () => {
     })
   })
 
+  test('a request notification shows only to the person it went to', async () => {
+    const { t, asAsha, asBen, loanId } = await setUpBensOverdueLoan()
+
+    // The loan is approved, so its latest notification went to Ben.
+    await insertActivity(t, loanId, {
+      kind: 'request-notification',
+      outcome: 'sent',
+      date: today,
+    })
+
+    const [borrowed] = await asBen.query(api.loans.listMyBorrowing)
+    const [lent] = await asAsha.query(api.loans.listMyLentOut)
+
+    expect(borrowed.latestActivity?.label).toBe(
+      'Request notification sent today'
+    )
+    expect(lent.latestActivity).toBeNull()
+  })
+
   test("another loan's activity never shows on this loan", async () => {
     const { t, asBen, asCara, toolId, loanId } = await setUpBensOverdueLoan()
     const carasLoanId = await insertLoan(t, toolId, 'cara', {

@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import type { Doc } from '@/convex/_generated/dataModel'
 import type { Category } from '@/components/categoryLabels'
 import { formatDateRange } from '@/components/formatDateRange'
 import LoanToolIcon from '@/components/LoanToolIcon'
@@ -10,7 +11,7 @@ type LoanRowProps = {
   startDate: string
   endDate: string
   // The latest loan activity line; the admin list has none.
-  activity?: { outcome: 'sent' | 'failed'; label: string } | null
+  activity?: { outcome: Doc<'loanActivity'>['outcome']; label: string } | null
   // The status hint, pill and button that follow the dates.
   children: ReactNode
 }

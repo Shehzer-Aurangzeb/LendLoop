@@ -97,7 +97,9 @@
         "contentType": "raw",
         "rawContentType": "application/json",
         "body": "={{ $json.body }}",
-        "options": {}
+        "options": {
+          "timeout": 10000
+        }
       }
     },
     {
@@ -128,7 +130,7 @@
         0
       ],
       "parameters": {
-        "jsCode": "// Set to true to demo a failed send: n8n retries it, then the error branch writes 'failed'.\nconst shouldFailOnPurpose = false\n\nif (shouldFailOnPurpose) throw new Error('Mock reminder send failed on purpose.')\n\nreturn $input.all().map(({ json }) => {\n  const { borrowerFirstName, toolName, endDate } = json.reminder\n  const message = `To ${borrowerFirstName}: please return ${toolName}, it was due ${endDate}`\n\n  console.log(message)\n\n  return { json: { ...json, message } }\n})\n"
+        "jsCode": "// Set to true to demo a failed send: n8n retries it, then the error branch writes 'failed'.\nconst isFailingOnPurpose = false\n\nif (isFailingOnPurpose) throw new Error('Mock reminder send failed on purpose.')\n\nreturn $input.all().map(({ json }) => {\n  const { borrowerFirstName, toolName, endDate } = json.reminder\n  const message = `To ${borrowerFirstName}: please return ${toolName}, it was due ${endDate}`\n\n  console.log(message)\n\n  return { json: { ...json, message } }\n})\n"
       },
       "onError": "continueErrorOutput",
       "retryOnFail": true,
@@ -163,12 +165,12 @@
     },
     {
       "id": "d7a0b5c2-0009-4000-8000-000000000009",
-      "name": "Sign result",
+      "name": "Sign sent result",
       "type": "n8n-nodes-base.crypto",
       "typeVersion": 2,
       "position": [
         1540,
-        0
+        -100
       ],
       "parameters": {
         "action": "hmac",
@@ -187,12 +189,12 @@
     },
     {
       "id": "d7a0b5c2-0010-4000-8000-000000000010",
-      "name": "Write back result",
+      "name": "Write back sent result",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
         1760,
-        0
+        -100
       ],
       "parameters": {
         "method": "POST",
@@ -210,11 +212,83 @@
         "contentType": "raw",
         "rawContentType": "application/json",
         "body": "={{ $json.body }}",
-        "options": {}
+        "options": {
+          "timeout": 10000
+        }
       },
       "retryOnFail": true,
       "maxTries": 3,
       "waitBetweenTries": 5000
+    },
+    {
+      "id": "d7a0b5c2-0012-4000-8000-000000000012",
+      "name": "Sign failed result",
+      "type": "n8n-nodes-base.crypto",
+      "typeVersion": 2,
+      "position": [
+        1540,
+        100
+      ],
+      "parameters": {
+        "action": "hmac",
+        "binaryData": false,
+        "type": "SHA256",
+        "value": "={{ $json.body }}",
+        "dataPropertyName": "signature",
+        "encoding": "hex"
+      },
+      "credentials": {
+        "crypto": {
+          "id": "LendLoopCvxKey01",
+          "name": "LendLoop Convex secret"
+        }
+      }
+    },
+    {
+      "id": "d7a0b5c2-0013-4000-8000-000000000013",
+      "name": "Write back failed result",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1760,
+        100
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $('Build due request').first().json.convexSiteUrl }}/overdue-reminders/result",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-LendLoop-Signature",
+              "value": "={{ $json.signature }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.body }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000
+    },
+    {
+      "id": "d7a0b5c2-0014-4000-8000-000000000014",
+      "name": "Fail run: reminders failed",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1980,
+        100
+      ],
+      "parameters": {
+        "jsCode": "// Runs after the failed rows are saved, so the run ends in error and the error workflow alerts.\nthrow new Error(`${$input.all().length} overdue reminder(s) failed after every retry and were written back as failed.`)\n"
+      }
     }
   ],
   "connections": {
@@ -306,7 +380,18 @@
       "main": [
         [
           {
-            "node": "Sign result",
+            "node": "Sign sent result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sign sent result": {
+      "main": [
+        [
+          {
+            "node": "Write back sent result",
             "type": "main",
             "index": 0
           }
@@ -317,18 +402,29 @@
       "main": [
         [
           {
-            "node": "Sign result",
+            "node": "Sign failed result",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Sign result": {
+    "Sign failed result": {
       "main": [
         [
           {
-            "node": "Write back result",
+            "node": "Write back failed result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write back failed result": {
+      "main": [
+        [
+          {
+            "node": "Fail run: reminders failed",
             "type": "main",
             "index": 0
           }

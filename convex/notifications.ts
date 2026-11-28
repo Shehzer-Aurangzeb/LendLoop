@@ -8,6 +8,7 @@ import {
 import type { Doc, Id } from '@/convex/_generated/dataModel'
 import { todayInAppTimezone } from '@/convex/lib/dates'
 import { hmacSha256Hex } from '@/convex/lib/signatures'
+import { isLenderTheRecipient } from '@/convex/lib/notifications'
 import { loadToolSummary } from '@/convex/lib/tools'
 import { firstNameOf } from '@/convex/lib/users'
 import {
@@ -22,9 +23,6 @@ const describeNotification = (
   loanId: Id<'loans'>,
   event: Doc<'loans'>['status']
 ) => `Request notification for loan ${loanId} (${event})`
-
-const isLenderTheRecipient = (event: Doc<'loans'>['status']) =>
-  event === 'requested' || event === 'cancelled'
 
 export const loadRequestNotificationPayload = internalQuery({
   args: { loanId: v.id('loans'), event: loanStatusValidator },

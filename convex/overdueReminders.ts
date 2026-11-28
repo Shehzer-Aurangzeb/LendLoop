@@ -1,9 +1,29 @@
 import { v } from 'convex/values'
-import { internalMutation, internalQuery } from '@/convex/_generated/server'
+import {
+  internalMutation,
+  internalQuery,
+  type QueryCtx,
+} from '@/convex/_generated/server'
+import type { Id } from '@/convex/_generated/dataModel'
 import { todayInAppTimezone } from '@/convex/lib/dates'
 import { loadToolSummary } from '@/convex/lib/tools'
 import { firstNameOf } from '@/convex/lib/users'
 import { activityOutcomeValidator } from '@/convex/schema'
+
+const loadOverdueReminderOn = async (
+  { db }: Pick<QueryCtx, 'db'>,
+  loanId: Id<'loans'>,
+  date: string
+) => {
+  const activityThatDay = await db
+    .query('loanActivity')
+    .withIndex('by_loan_and_date', (q) =>
+      q.eq('loanId', loanId).eq('date', date)
+    )
+    .collect()
+
+  return activityThatDay.find((row) => row.kind === 'overdue-reminder') ?? null
+}
 
 // A `failed` row does not count, so a rerun on the same day retries it.
 export const listOverdueRemindersNotSentToday = internalQuery({
@@ -29,17 +49,9 @@ export const listOverdueRemindersNotSentToday = internalQuery({
       .collect()
     const reminders = await Promise.all(
       overdueLoans.map(async (loan) => {
-        const activityToday = await ctx.db
-          .query('loanActivity')
-          .withIndex('by_loan_and_date', (q) =>
-            q.eq('loanId', loan._id).eq('date', date)
-          )
-          .collect()
-        const isSentToday = activityToday.some(
-          (row) => row.kind === 'overdue-reminder' && row.outcome === 'sent'
-        )
+        const reminderToday = await loadOverdueReminderOn(ctx, loan._id, date)
 
-        if (isSentToday) {
+        if (reminderToday?.outcome === 'sent') {
           return null
         }
         const { toolName } = await loadToolSummary(ctx, loan.toolId)
@@ -90,15 +102,7 @@ export const recordOverdueReminderOutcome = internalMutation({
       return 'loan-not-found'
     }
     // Convex mutations are serializable, so a racing retry cannot slip a second row in between this read and the insert.
-    const activityThatDay = await ctx.db
-      .query('loanActivity')
-      .withIndex('by_loan_and_date', (q) =>
-        q.eq('loanId', loanId).eq('date', date)
-      )
-      .collect()
-    const existing = activityThatDay.find(
-      (row) => row.kind === 'overdue-reminder'
-    )
+    const existing = await loadOverdueReminderOn(ctx, loanId, date)
 
     if (!existing) {
       await ctx.db.insert('loanActivity', {

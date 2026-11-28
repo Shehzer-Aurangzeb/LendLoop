@@ -6,7 +6,7 @@ import { readSignedJsonBody } from '@/convex/lib/signatures'
 
 const http = httpRouter()
 
-const statusForOutcomeRecord = {
+const statusForRecordResult = {
   recorded: 200,
   'invalid-loan-id': 400,
   'future-date': 400,
@@ -50,12 +50,12 @@ http.route({
     ) {
       return new Response(null, { status: 400 })
     }
-    const record = await ctx.runMutation(
+    const result = await ctx.runMutation(
       internal.overdueReminders.recordOverdueReminderOutcome,
       { loanId, date, outcome }
     )
 
-    return new Response(null, { status: statusForOutcomeRecord[record] })
+    return new Response(null, { status: statusForRecordResult[result] })
   }),
 })
 

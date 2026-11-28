@@ -1,8 +1,11 @@
 import { v } from 'convex/values'
 import type { MutationCtx, QueryCtx } from '@/convex/_generated/server'
 import type { Doc, Id } from '@/convex/_generated/dataModel'
-import { scheduleRequestNotification } from '@/convex/lib/notifications'
-import schema from '@/convex/schema'
+import {
+  isLenderTheRecipient,
+  scheduleRequestNotification,
+} from '@/convex/lib/notifications'
+import { activityOutcomeValidator } from '@/convex/schema'
 
 // Lent out: approved and started. The end date only decides overdue, never "out".
 export const isLentOutOn = (loan: Doc<'loans'>, today: string) =>
@@ -66,27 +69,38 @@ export const describeLoanActivity = (
 ) =>
   `${activityNames[kind]} ${outcome} ${formatDaysAgo(daysBetween(date, today))}`
 
-const activityFields = schema.tables.loanActivity.validator.fields
-
 export const latestActivityValidator = v.union(
   v.object({
-    outcome: activityFields.outcome,
+    outcome: activityOutcomeValidator,
     label: v.string(),
   }),
   v.null()
 )
 
-// Index order is date, then _creationTime, so desc + first is the latest row.
+// Index order is date, then _creationTime, so desc walks from the latest row.
 export const loadLatestActivityLine = async (
   ctx: QueryCtx,
-  loanId: Id<'loans'>,
+  loan: Doc<'loans'>,
+  viewer: 'borrower' | 'lender',
   today: string
 ) => {
-  const latest = await ctx.db
+  const rows = await ctx.db
     .query('loanActivity')
-    .withIndex('by_loan_and_date', (q) => q.eq('loanId', loanId))
+    .withIndex('by_loan_and_date', (q) => q.eq('loanId', loan._id))
     .order('desc')
-    .first()
+    .collect()
+  const latestReminder = rows.find((row) => row.kind === 'overdue-reminder')
+  const latestNotification = rows.find(
+    (row) => row.kind === 'request-notification'
+  )
+  // Each status change sends one notification, so the latest one is about the current status.
+  const isNotificationForViewer =
+    isLenderTheRecipient(loan.status) === (viewer === 'lender')
+  const latest = rows.find(
+    (row) =>
+      row === latestReminder ||
+      (isNotificationForViewer && row === latestNotification)
+  )
 
   if (!latest) {
     return null
