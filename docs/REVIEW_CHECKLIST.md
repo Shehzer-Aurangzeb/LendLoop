@@ -43,3 +43,7 @@ Rules the `pr-reviewer` agent checks every diff against. Concise rule plus a one
 - **A new required Convex env var goes into `.env.example` and the README setup steps in the same PR.** Why: otherwise a fresh clone fails on a variable nobody mentioned.
 - **A live query rendered outside a page's `LoadErrorBoundary` (header, layout) has its own fallback.** Why: Convex `useQuery` throws during render, and with no boundary above it the whole layout breaks.
 - **A query that runs on every page filters by an index, not with `.filter` after `.collect()`.** Why: it re-reads every matching row on every page view and reruns when any of them changes.
+
+## Docs
+
+- **Every absolute claim in the docs ("only", "never", "no X leaves Convex") is checked against the code and names its exceptions.** Why: four README claims were true in most places and false in one, and a reviewer who checks one of them stops trusting the rest.

@@ -34,7 +34,7 @@ A neighbourhood tool-lending board. Neighbours list tools, ask to borrow them fo
 - **Loans (`/loans`):** incoming requests to approve or decline, tools you've lent out (mark as returned), and what you're borrowing (cancel a waiting request). Each loan shows its latest automation, like "Reminder sent 2 days ago".
 - **Admin (`/admin`):** remove any listing, see all loans by status, and toggle Trusted Lender.
 
-The seed script fills the board with six demo neighbours, 15 tools and a loan in every status, so all of this shows on first run.
+The seed script fills the board with six demo neighbours, 15 tools (one already removed by an admin) and a loan in every status, so all of this shows on first run.
 
 ## Setup
 
@@ -179,7 +179,7 @@ Real values live only in `.env.local`, Convex env vars and n8n credentials. `.en
 | `N8N_REQUEST_WEBHOOK_URL` | Convex | The request-notification webhook in n8n. |
 | `N8N_WEBHOOK_SECRET` | Convex | HMAC secret Convex signs request notifications with. |
 | `CONVEX_WEBHOOK_SECRET` | Convex | HMAC secret Convex verifies n8n's reminder requests with. |
-| `N8N_ENCRYPTION_KEY` | `n8n/.env` | Encrypts the credentials n8n stores. The only value passed into the container. |
+| `N8N_ENCRYPTION_KEY` | `n8n/.env` | Encrypts the credentials n8n stores. The only value from this file passed into the container. |
 | `LENDLOOP_WEBHOOK_SECRET` | `n8n/.env` + n8n credential `LendLoop webhook secret` | Same value as `N8N_WEBHOOK_SECRET`. The file copy is for the test script. |
 | `CONVEX_WEBHOOK_SECRET` | `n8n/.env` + n8n credential `LendLoop Convex secret` | Same value as the Convex one. The file copy is for the test script. |
 
@@ -239,15 +239,15 @@ Every decision and its reason is in [`docs/decisions.md`](docs/decisions.md). Th
 - **HMAC-SHA256 in both directions, with separate secrets.** Convex signs what it sends to n8n with `N8N_WEBHOOK_SECRET`; n8n signs what it sends to Convex with `CONVEX_WEBHOOK_SECRET`. A leak of one does not let an attacker fake the other.
 - **Signatures are checked on the raw body, in constant time.** Re-parsed JSON could change spacing or key order; `===` leaks how many characters matched.
 - **Replay defence.** Each signed body carries `sentAt`, which must be within 5 minutes. n8n also dedupes request notifications on `notificationId`; Convex write-backs are idempotent, so a replay changes nothing.
-- **Convex parses JSON only after the signature passes.** A refusal is a bare `401` with no detail.
-- **Secrets never sit in code or in the exported workflow JSON.** The JSON names n8n credentials by id and name only. `docker-compose.yml` passes only `N8N_ENCRYPTION_KEY` into the container, and binds n8n to `127.0.0.1`.
+- **Convex parses JSON only after the signature passes.** A bad signature or stale `sentAt` is a bare `401`; no refusal carries detail.
+- **Secrets never sit in code or in the exported workflow JSON.** The JSON names n8n credentials by id and name only. The only value from `n8n/.env` that `docker-compose.yml` passes into the container is `N8N_ENCRYPTION_KEY`, and n8n is bound to `127.0.0.1`.
 - **Mutations never call n8n directly.** They schedule an action, which runs only if the write commits, so n8n never hears about a change that was rolled back.
 
 ## Data minimisation
 
 - **The public list returns tool name and category only**, with no `_id` and no owner. Strangers don't need to know which house has a drill.
 - **Queries declare exact `returns` validators.** Convex rejects a response with an extra field, so a later schema change cannot leak data by accident.
-- **The browser gets first names only.** No email, full name or user id leaves Convex; "is this mine" is worked out on the server.
+- **The browser gets first names only.** No email or full name leaves Convex, and neighbours' screens get no user id; "is this mine" is worked out on the server. Only the admin lender list returns user ids, after `requireAdmin`, so the Trusted Lender toggle can name a user.
 - **The tool page shows lent days as dates only**, not who has the tool.
 - **n8n gets only what a message needs:** first names, tool name, dates, plus ids and `sentAt`. No email or full name reaches n8n.
 - **Loan activity shows only on the borrower's and lender's own lists**, so no new access check is needed.

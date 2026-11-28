@@ -149,7 +149,7 @@ Running list, one entry per decision. Becomes the design and security section of
 
 ## Documentation
 
-- **The README keeps the full setup and a short version of every security, data and reliability decision; `docs/decisions.md` keeps the reasons.** A reviewer gets the whole picture from one file without reading 160 lines of decisions, and each README bullet can be traced here.
+- **The README keeps the full setup and a short version of every security, data and reliability decision; `docs/decisions.md` keeps the reasons.** A reviewer gets the whole picture from one file without reading the full decisions list, and each README bullet can be traced here.
 - **The production note lists what changes, not how to build it.** Clerk webhook sync, rate limiting, cloud Convex, hosted n8n over HTTPS, a real email provider, CI and an audit log. Each is a known gap of the local demo, named so a reviewer sees it was a choice.
 
 ## Known limits
