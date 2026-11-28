@@ -8,6 +8,8 @@ import {
   doDayRangesOverlap,
   isLentOutOn,
   isOverdueOn,
+  latestActivityValidator,
+  loadLatestActivityLine,
 } from '@/convex/lib/loans'
 import { scheduleRequestNotification } from '@/convex/lib/notifications'
 import { loadToolSummary, requireLiveTool } from '@/convex/lib/tools'
@@ -104,6 +106,7 @@ export const listMyBorrowing = query({
       endDate: v.string(),
       status: loanStatusValidator,
       isOverdue: v.boolean(),
+      latestActivity: latestActivityValidator,
     })
   ),
   handler: async (ctx) => {
@@ -130,6 +133,7 @@ export const listMyBorrowing = query({
           endDate,
           status,
           isOverdue: isOverdueOn({ status, endDate }, today),
+          latestActivity: await loadLatestActivityLine(ctx, _id, today),
         })
       )
     )
@@ -323,6 +327,7 @@ export const listMyLentOut = query({
       endDate: v.string(),
       hasStarted: v.boolean(),
       isOverdue: v.boolean(),
+      latestActivity: latestActivityValidator,
     })
   ),
   handler: async (ctx) => {
@@ -345,6 +350,7 @@ export const listMyLentOut = query({
         endDate: loan.endDate,
         hasStarted: isLentOutOn(loan, today),
         isOverdue: isOverdueOn(loan, today),
+        latestActivity: await loadLatestActivityLine(ctx, loan._id, today),
       }))
     )
   },

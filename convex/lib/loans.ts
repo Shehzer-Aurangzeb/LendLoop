@@ -1,6 +1,8 @@
-import type { MutationCtx } from '@/convex/_generated/server'
+import { v } from 'convex/values'
+import type { MutationCtx, QueryCtx } from '@/convex/_generated/server'
 import type { Doc, Id } from '@/convex/_generated/dataModel'
 import { scheduleRequestNotification } from '@/convex/lib/notifications'
+import schema from '@/convex/schema'
 
 // Lent out: approved and started. The end date only decides overdue, never "out".
 export const isLentOutOn = (loan: Doc<'loans'>, today: string) =>
@@ -33,5 +35,65 @@ export const declineAndNotifyWaitingRequests = async (
   for (const loan of waiting) {
     await ctx.db.patch(loan._id, { status: 'declined' })
     await scheduleRequestNotification(ctx, loan._id, 'declined')
+  }
+}
+
+type LoanActivity = Pick<Doc<'loanActivity'>, 'kind' | 'outcome' | 'date'>
+
+const activityNames: Record<LoanActivity['kind'], string> = {
+  'overdue-reminder': 'Reminder',
+  'request-notification': 'Request notification',
+}
+
+// Both days read as UTC midnight, so a daylight-saving change never shifts the count.
+const daysBetween = (from: string, to: string) =>
+  Math.round(
+    (Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) /
+      86_400_000
+  )
+
+const formatDaysAgo = (days: number) => {
+  if (days <= 0) {
+    return 'today'
+  }
+
+  return days === 1 ? 'yesterday' : `${days} days ago`
+}
+
+export const describeLoanActivity = (
+  { kind, outcome, date }: LoanActivity,
+  today: string
+) =>
+  `${activityNames[kind]} ${outcome} ${formatDaysAgo(daysBetween(date, today))}`
+
+const activityFields = schema.tables.loanActivity.validator.fields
+
+export const latestActivityValidator = v.union(
+  v.object({
+    outcome: activityFields.outcome,
+    label: v.string(),
+  }),
+  v.null()
+)
+
+// Index order is date, then _creationTime, so desc + first is the latest row.
+export const loadLatestActivityLine = async (
+  ctx: QueryCtx,
+  loanId: Id<'loans'>,
+  today: string
+) => {
+  const latest = await ctx.db
+    .query('loanActivity')
+    .withIndex('by_loan_and_date', (q) => q.eq('loanId', loanId))
+    .order('desc')
+    .first()
+
+  if (!latest) {
+    return null
+  }
+
+  return {
+    outcome: latest.outcome,
+    label: describeLoanActivity(latest, today),
   }
 }

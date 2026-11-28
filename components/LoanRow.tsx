@@ -9,6 +9,8 @@ type LoanRowProps = {
   otherPersonLine: string
   startDate: string
   endDate: string
+  // The latest loan activity line; the admin list has none.
+  activity?: { outcome: 'sent' | 'failed'; label: string } | null
   // The status hint, pill and button that follow the dates.
   children: ReactNode
 }
@@ -19,6 +21,7 @@ const LoanRow = ({
   otherPersonLine,
   startDate,
   endDate,
+  activity,
   children,
 }: LoanRowProps) => (
   // tabIndex -1: focus lands here when a row's button goes but the row stays.
@@ -35,6 +38,13 @@ const LoanRow = ({
       <span className="text-sm text-ink-muted">
         {formatDateRange(startDate, endDate)}
       </span>
+      {activity && (
+        <span
+          className={`text-[13px] ${activity.outcome === 'failed' ? 'text-status-overdue-ink' : 'text-ink-muted'}`}
+        >
+          {activity.label}
+        </span>
+      )}
     </div>
     {children}
   </li>

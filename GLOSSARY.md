@@ -67,3 +67,6 @@ _Avoid_: Booked, unavailable
 **Overdue loan**:
 An approved loan whose end date is before today, in the app's one timezone. Worked out on read, never stored.
 _Avoid_: Late loan
+
+**Overdue reminder**:
+A daily message to the Borrower of an overdue loan, at most one sent per loan per day. A failed reminder is retried the same day.

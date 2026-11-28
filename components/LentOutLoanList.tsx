@@ -33,6 +33,7 @@ const LentOutLoanList = ({ loans }: { loans: LentOutLoan[] }) => {
           otherPersonLine={`with ${loan.borrowerFirstName}`}
           startDate={loan.startDate}
           endDate={loan.endDate}
+          activity={loan.latestActivity}
         >
           <LoanStatusPill status={pillStatusOf(loan)} />
           {loan.hasStarted && (

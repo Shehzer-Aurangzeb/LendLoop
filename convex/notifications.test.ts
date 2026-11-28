@@ -458,3 +458,63 @@ describe('a request notification that cannot be built is logged, not sent', () =
     expect(String(consoleError.mock.calls[0])).toContain(loanId)
   })
 })
+
+const activityRows = (t: TestConvex<typeof schema>) =>
+  t.run((ctx) => ctx.db.query('loanActivity').collect())
+
+describe('the final request notification outcome is stored in loanActivity', () => {
+  test('a successful send stores one sent row for today', async () => {
+    const { t, asAsha, benId, toolId } = await setUpAshasDrill()
+    const loanId = await insertLoan(t, { toolId, borrowerId: benId })
+
+    await asAsha.mutation(api.loans.approve, { loanId })
+    await runNotificationsDueWithin(t)
+
+    expect(await activityRows(t)).toMatchObject([
+      { loanId, kind: 'request-notification', outcome: 'sent', date: today },
+    ])
+  })
+
+  test('failed attempts store nothing until the last one stores one failed row', async () => {
+    const { t, asAsha, benId, toolId } = await setUpAshasDrill()
+    const loanId = await insertLoan(t, { toolId, borrowerId: benId })
+
+    respondWith(500)
+    await asAsha.mutation(api.loans.approve, { loanId })
+    await runNotificationsDueWithin(t)
+    await runNotificationsDueWithin(t, 60_000)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(await activityRows(t)).toStrictEqual([])
+
+    await runNotificationsDueWithin(t, 300_000)
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    expect(await activityRows(t)).toMatchObject([
+      { loanId, kind: 'request-notification', outcome: 'failed', date: today },
+    ])
+  })
+
+  test('a retry that succeeds stores only sent', async () => {
+    const { t, asAsha, benId, toolId } = await setUpAshasDrill()
+    const loanId = await insertLoan(t, { toolId, borrowerId: benId })
+
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 500 }))
+    await asAsha.mutation(api.loans.approve, { loanId })
+    await t.finishAllScheduledFunctions(vi.runAllTimers)
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(await activityRows(t)).toMatchObject([
+      { loanId, kind: 'request-notification', outcome: 'sent' },
+    ])
+  })
+
+  test('nothing is stored when no send was attempted', async () => {
+    const { t, asAsha, benId, toolId } = await setUpAshasDrill()
+    const loanId = await insertLoan(t, { toolId, borrowerId: benId })
+
+    vi.stubEnv('N8N_WEBHOOK_SECRET', undefined)
+    await asAsha.mutation(api.loans.approve, { loanId })
+    await t.finishAllScheduledFunctions(vi.runAllTimers)
+
+    expect(await activityRows(t)).toStrictEqual([])
+  })
+})

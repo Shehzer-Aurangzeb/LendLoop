@@ -1,10 +1,19 @@
 import { v } from 'convex/values'
 import { internal } from '@/convex/_generated/api'
-import { internalAction, internalQuery } from '@/convex/_generated/server'
+import {
+  internalAction,
+  internalMutation,
+  internalQuery,
+} from '@/convex/_generated/server'
 import type { Doc, Id } from '@/convex/_generated/dataModel'
+import { todayInAppTimezone } from '@/convex/lib/dates'
+import { hmacSha256Hex } from '@/convex/lib/signatures'
 import { loadToolSummary } from '@/convex/lib/tools'
 import { firstNameOf } from '@/convex/lib/users'
-import { loanStatusValidator } from '@/convex/schema'
+import {
+  activityOutcomeValidator,
+  loanStatusValidator,
+} from '@/convex/schema'
 
 // Delay before attempt 2 and attempt 3; after attempt 3 the failure is only logged.
 const retryDelaysMs = [60_000, 300_000]
@@ -59,21 +68,21 @@ export const loadRequestNotificationPayload = internalQuery({
   },
 })
 
-const hmacSha256Hex = async (secret: string, body: string) => {
-  const encoder = new TextEncoder()
-  const key = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode(secret),
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign']
-  )
-  const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(body))
+// Plain insert, no dedupe: each status change sends its own notification.
+export const recordRequestNotificationOutcome = internalMutation({
+  args: { loanId: v.id('loans'), outcome: activityOutcomeValidator },
+  returns: v.null(),
+  handler: async (ctx, { loanId, outcome }) => {
+    await ctx.db.insert('loanActivity', {
+      loanId,
+      kind: 'request-notification',
+      outcome,
+      date: todayInAppTimezone(),
+    })
 
-  return Array.from(new Uint8Array(signature), (byte) =>
-    byte.toString(16).padStart(2, '0')
-  ).join('')
-}
+    return null
+  },
+})
 
 const postSigned = async (url: string, secret: string, body: string) => {
   try {
@@ -131,6 +140,11 @@ export const sendRequestNotification = internalAction({
     const body = JSON.stringify({ ...payload, sentAt: Date.now() })
 
     if (await postSigned(url, secret, body)) {
+      await ctx.runMutation(
+        internal.notifications.recordRequestNotificationOutcome,
+        { loanId, outcome: 'sent' }
+      )
+
       return null
     }
 
@@ -139,6 +153,10 @@ export const sendRequestNotification = internalAction({
     if (retryDelayMs === undefined) {
       console.error(
         `${describeNotification(loanId, event)} failed after ${attempt} attempts.`
+      )
+      await ctx.runMutation(
+        internal.notifications.recordRequestNotificationOutcome,
+        { loanId, outcome: 'failed' }
       )
 
       return null

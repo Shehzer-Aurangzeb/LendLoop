@@ -110,9 +110,16 @@ Running list, one entry per decision. Becomes the design and security section of
 ## Integration
 
 - **HMAC both directions, separate secrets, verified on the raw body.** For request notifications, Convex signs the exact body string with HMAC-SHA256, hex, in the `X-LendLoop-Signature` header; n8n hashes the raw request bytes, not re-parsed JSON, so spacing or key order cannot break or fake a match. Web Crypto, so no new dependency.
-- **Reminder write-backs are idempotent on `loanId + date`.** A retried write-back changes nothing.
+- **Reminder write-backs are idempotent on `loanId + date + kind`.** One `overdue-reminder` row per loan per day: `failed` upgrades to `sent`, `sent` never goes back to `failed`. A lost response or an n8n retry changes nothing. The mutation reads then inserts; Convex mutations are serializable, so a racing retry cannot add a second row.
 - **The reminder duplicate check reads the `loanId + date` index and filters on `kind`.** A loan has only a few activity rows a day, so a filter is cheap, and keeping `kind` out of the index keeps the per-loan activity list sorted by date.
-- **`/overdue` skips loans already reminded today.** A manual rerun never sends a second email.
+- **`/overdue-reminders/due` skips loans with a `sent` reminder today; a `failed` one stays in.** A manual rerun never sends a second message, but it does retry the failures.
+- **Convex HTTP actions only verify, then delegate.** `convex/http.ts` checks the signature and body shape and calls an `internal` query or mutation. Data access stays in normal Convex functions that tests and other code can reuse; an HTTP action has no `ctx.db` anyway.
+- **n8n signs its requests to Convex with its own secret, `CONVEX_WEBHOOK_SECRET`**, separate from F6's `N8N_WEBHOOK_SECRET`. A leak of one direction does not let an attacker fake the other.
+- **Both reminder endpoints are `POST`, even `/due` which only reads.** A `GET` has no body, so there would be nothing to sign or to carry `sentAt`.
+- **Convex parses JSON only after the signature passes.** Unsigned input never reaches the parser. Refusals are a bare 401 with no detail; a missing secret is a 500 and a logged error; a signed but malformed body is a 400; an unknown loan is a 404.
+- **Signed `sentAt` must be within 5 minutes (and at most 60 s ahead).** A replayed `/due` only reads a list, and a replayed `/result` is a no-op thanks to the idempotent write-back, so no extra id dedupe is needed on the Convex side.
+- **The `/result` mutation takes `loanId` as a plain string and checks it with `normalizeId`.** Only the database can tell a malformed id (400) from a well-formed id of a deleted loan (404).
+- **A request notification stores its final outcome in `loanActivity`.** `sent` on success, `failed` only after the last retry, plain insert with no dedupe. Nothing is stored when no send was attempted (env missing or loan gone), since there is no outcome to report; the `console.error` covers those.
 - **n8n writes back once per loan per run, `sent` or `failed`.** Retries happen on the send node; a final failure also triggers the error workflow.
 - **Every loan status change, and each request declined by a tool removal, schedules one request notification.** The mutation passes only `loanId` and `event`; the action builds the payload. Both removals share `declineAndNotifyWaitingRequests`, so neither can forget to notify.
 - **Who is told:** the Lender for `requested` and `cancelled`; the Borrower for `approved`, `declined` and `returned`, including a decline caused by a tool removal.
@@ -129,11 +136,18 @@ Running list, one entry per decision. Becomes the design and security section of
 - **The signature check reads the raw body back from the Webhook node.** The Crypto node drops the binary it hashed. Tested in n8n's default and filesystem binary modes.
 - **An unknown `event` is refused with a 401 in the signature check, before the dedupe.** Refused there, the id is never marked handled, so Convex retries and finally logs it instead of getting a silent 200 on the retry.
 - **Each send has a 10-second timeout.** A hung n8n becomes a normal failed try, so the retry and the final error log still happen.
+- **The overdue workflow's mock send has Retry On Fail (3 tries, 5 s apart) and an error output that writes `failed`.** A short hiccup is retried inside the same run; a send that still fails is recorded, never silent, and the next run retries it. The write-back node retries too, since a lost write-back would leave no row.
+- **A failed `/overdue-reminders/due` request fails the whole run.** The HTTP node is left to fail on a non-2xx, so a Convex outage or a bad secret shows in the `LendLoop error handler` workflow instead of looking like a quiet day with nothing due.
+- **The mock send runs once for all items, with a `shouldFailOnPurpose` switch.** Simplest shape: one throw is one outcome for the whole batch, retried as a unit. Known limit: one failing loan fails the batch, fine for a mock; a real sender should send per item. A throw yields a single error item that n8n pairs to the first loan only, so "Build failed result" reads every loan from the split node to write `failed` for each.
+- **A write-back that fails for good (400 or 404) stops the rest of the batch after its retries**, and the error workflow shows the run. Loans not written back yet are retried by the next run.
+- **The Convex base URL lives in one constant in the first Code node.** Both HTTP nodes read it, so moving Convex means one edit.
+- **The overdue workflow has a manual trigger next to the schedule.** `n8n execute` and the **Execute workflow** button both need one; the schedule handles the daily run.
 - **The test script passes the secret to `openssl` as an argument.** Other local processes could see it in the process list; fine for a local test tool, never for production code. The README's `npx convex env set N8N_WEBHOOK_SECRET` step has the same local-only trade-off.
+- **Loan activity shows only the latest row, on the Borrower's and Lender's own lists.** It rides on `listMyBorrowing` and `listMyLentOut`, which already scope to the caller, so no new access check is needed. The label ("Reminder sent 2 days ago") is worked out on the server because only the server knows `APP_TIMEZONE`. Waiting requests show none: their only activity is the notification the Lender is already reading.
 
 ## Known limits
 
-- **The board, My tools, the Loans page and the admin loan list may show a stale "out" or "overdue" across midnight.** Their queries work out today on the server, and Convex reruns a query only when its data changes. A page left open overnight catches up on the next write or reload; until then "Mark as returned" can stay hidden on a loan that started that day. Reminders are unaffected: n8n asks the server fresh each run. Fix if it matters: return raw dates and compare in the browser.
+- **The board, My tools, the Loans page and the admin loan list may show a stale "out" or "overdue" across midnight.** Their queries work out today on the server, and Convex reruns a query only when its data changes. The loan activity line ("Reminder sent today") has the same limit. A page left open overnight catches up on the next write or reload; until then "Mark as returned" can stay hidden on a loan that started that day. Reminders are unaffected: n8n asks the server fresh each run. Fix if it matters: return raw dates and compare in the browser.
 - **n8n marks a `notificationId` as handled before the log step runs.** If the log step crashed after that, a retry of the same id would be dropped as a duplicate. Fine for a mock logger; a real sender should dedupe after a successful send.
 
 ## Later, if it grows
