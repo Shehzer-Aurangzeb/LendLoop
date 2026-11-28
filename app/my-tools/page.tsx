@@ -8,8 +8,8 @@ import SignedInPage from '@/components/SignedInPage'
 export const metadata: Metadata = { title: 'My tools' }
 
 export default async function MyToolsPage() {
-  // Redirects a signed-out visitor to sign in. Convenience only: Convex checks the caller.
-  await auth.protect()
+  // To the landing page, whose sign-in is a modal. Convenience only: Convex checks the caller.
+  await auth.protect({ unauthenticatedUrl: '/' })
 
   return (
     <SignedInPage>

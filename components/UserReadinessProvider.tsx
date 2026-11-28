@@ -26,7 +26,7 @@ export const useUserReadiness = () => {
 
 const useStoreUserOnSignIn = (): UserReadiness => {
   const { isAuthenticated } = useConvexAuth()
-  const { userId } = useAuth()
+  const { userId, isSignedIn } = useAuth()
   const storeUser = useMutation(api.users.store)
   const [isUserReady, setIsUserReady] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -64,7 +64,9 @@ const useStoreUserOnSignIn = (): UserReadiness => {
 
   const retry = () => setAttempt((n) => n + 1)
 
-  return { isUserReady, error, retry }
+  // Read in render, not reset in the effect: on sign-out, queries must skip before
+  // Convex drops the token, or the server reruns them signed out and they throw.
+  return { isUserReady: isUserReady && isSignedIn === true, error, retry }
 }
 
 const UserReadinessProvider = ({ children }: { children: ReactNode }) => {

@@ -12,15 +12,25 @@ export const store = mutation({
   handler: async (ctx) => {
     const identity = await requireIdentity(ctx)
     const existing = await findUserByToken(ctx, identity.tokenIdentifier)
+    const tokenName = identity.name?.trim()
 
-    // Admins set role and isTrustedLender; a sign-in must never reset them.
+    // Refreshes only what Clerk owns; role and isTrustedLender are the admin's.
+    // A token missing a claim keeps the stored value instead of blanking it.
     if (existing) {
+      const name = tokenName || existing.name
+      const email = identity.email ?? existing.email
+
+      // Skipping an unchanged write keeps every query that reads users from rerunning.
+      if (name !== existing.name || email !== existing.email) {
+        await ctx.db.patch(existing._id, { name, email })
+      }
+
       return existing._id
     }
 
     return await ctx.db.insert('users', {
       tokenIdentifier: identity.tokenIdentifier,
-      name: identity.name?.trim() || 'Neighbour',
+      name: tokenName || 'Neighbour',
       email: identity.email,
       role: 'user',
       isTrustedLender: false,

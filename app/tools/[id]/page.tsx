@@ -13,8 +13,8 @@ export default async function ToolPage({
 }: {
   params: Promise<{ id: string }>
 }) {
-  // Redirects a signed-out visitor to sign in. Convenience only: Convex checks the caller.
-  await auth.protect()
+  // To the landing page, whose sign-in is a modal. Convenience only: Convex checks the caller.
+  await auth.protect({ unauthenticatedUrl: '/' })
   const { id } = await params
 
   return (

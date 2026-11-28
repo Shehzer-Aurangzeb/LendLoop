@@ -10,8 +10,8 @@ import WaitingSection from '@/components/WaitingSection'
 export const metadata: Metadata = { title: 'Loans' }
 
 export default async function LoansPage() {
-  // Redirects a signed-out visitor to sign in. Convenience only: Convex checks the caller.
-  await auth.protect()
+  // To the landing page, whose sign-in is a modal. Convenience only: Convex checks the caller.
+  await auth.protect({ unauthenticatedUrl: '/' })
 
   return (
     <SignedInPage>

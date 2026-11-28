@@ -10,8 +10,8 @@ import ToolBoard from '@/components/ToolBoard'
 export const metadata: Metadata = { title: 'Board' }
 
 export default async function BoardPage() {
-  // Redirects a signed-out visitor to sign in. Convenience only: Convex checks the caller.
-  await auth.protect()
+  // To the landing page, whose sign-in is a modal. Convenience only: Convex checks the caller.
+  await auth.protect({ unauthenticatedUrl: '/' })
 
   return (
     <SignedInPage>

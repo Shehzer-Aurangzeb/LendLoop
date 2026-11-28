@@ -53,6 +53,41 @@ describe('users.store', () => {
     expect(user).toMatchObject({ role: 'admin', isTrustedLender: true })
   })
 
+  test('a later sign-in refreshes name and email but keeps role and trust', async () => {
+    const t = convexTest(schema, modules)
+    const asOld = t.withIdentity({ ...neighbour, subject: 'asha' })
+    const id = await asOld.mutation(api.users.store)
+
+    await t.run((ctx) =>
+      ctx.db.patch(id, { role: 'admin', isTrustedLender: true })
+    )
+    await t
+      .withIdentity({ name: 'Asha Rao', email: 'asha@new.example', subject: 'asha' })
+      .mutation(api.users.store)
+
+    const user = await t.run((ctx) => ctx.db.get(id))
+
+    expect(user).toMatchObject({
+      name: 'Asha Rao',
+      email: 'asha@new.example',
+      role: 'admin',
+      isTrustedLender: true,
+    })
+  })
+
+  test('a later token with no name or email keeps the stored ones', async () => {
+    const t = convexTest(schema, modules)
+    const id = await t
+      .withIdentity({ ...neighbour, subject: 'asha' })
+      .mutation(api.users.store)
+
+    await t.withIdentity({ subject: 'asha' }).mutation(api.users.store)
+
+    const user = await t.run((ctx) => ctx.db.get(id))
+
+    expect(user).toMatchObject({ name: 'Asha', email: 'asha@example.com' })
+  })
+
   test('identity with no name is stored as Neighbour', async () => {
     const t = convexTest(schema, modules)
     const id = await t.withIdentity({}).mutation(api.users.store)

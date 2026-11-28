@@ -9,11 +9,11 @@ export const messageAfterChange = async (
 
     return null
   } catch (error) {
-    console.error('A change failed', error)
-    // Only our ConvexError messages are written for people; anything else is not.
+    // Only our ConvexError messages are written for people; they are expected refusals, not bugs.
     if (error instanceof ConvexError && typeof error.data === 'string') {
       return error.data
     }
+    console.error('A change failed', error)
 
     return fallback
   }
