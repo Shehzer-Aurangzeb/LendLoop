@@ -37,7 +37,7 @@ const isFreshSentAt = (sentAt: unknown) =>
   sentAt >= Date.now() - maxAgeMs &&
   sentAt <= Date.now() + maxClockAheadMs
 
-// Either the parsed body or the response to send back. Refusals carry no detail, so a caller learns nothing.
+// Refusals carry no detail, so a caller learns nothing.
 export const readSignedJsonBody = async (
   request: Request
 ): Promise<{ body: Record<string, unknown> } | { refusal: Response }> => {

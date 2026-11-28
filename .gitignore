@@ -36,7 +36,7 @@ test-results/
 *.tsbuildinfo
 next-env.d.ts
 
-# Private brief: job and personal context, never commit
+# Private brief, local only, never commit
 BRIEF.md
 
 # AI workflow specs and tickets (temporary, local only)

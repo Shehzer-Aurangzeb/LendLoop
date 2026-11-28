@@ -42,8 +42,7 @@ check, HMAC signing or verification, or an n8n workflow is a **Feature**.
    `docs/REVIEW_CHECKLIST.md`.
 6. **Walkthrough**: `/walkthrough`. The agent writes the feature doc in
    `docs/`, then quizzes the developer on how it works. The feature is ready
-   when the developer can explain it without the code, as they will have to in
-   the interview.
+   when the developer can explain it without the code.
 7. **Retro**: `/retro`. Improve `CLAUDE.md`, the skills or the checks so the
    next feature goes better. Add the feature's decisions to
    `docs/decisions.md`. Then delete `issues/<feature-slug>/`.

@@ -277,6 +277,7 @@ Every decision and its reason is in [`docs/decisions.md`](docs/decisions.md). Th
 - **A real email provider.** Replace the mock log nodes with an email service (such as Resend or Postmark). Look up the email inside n8n's call to Convex, or send from Convex, so emails never sit in a payload. Send per loan, and dedupe after a successful send.
 - **CI.** Run `pnpm lint`, `pnpm typecheck` and `pnpm test` on every pull request, and deploy Convex from CI on merge.
 - **Audit log.** Record every admin action (remove listing, Trusted Lender change) and every role change: who, what, when. Keep it append-only.
+- **Tool photos.** Upload with Convex file storage: the mutation checks the caller owns the tool and the file type and size before saving the storage id, and queries return a short-lived URL. Today each tool shows its category icon on a tinted tile.
 - **Smaller items:** paginate the tool lists and filter by category on the server; set an admin through a script instead of the dashboard; add error monitoring (such as Sentry) for the Convex `console.error` lines.
 
 ## Commands and tests

@@ -1,7 +1,7 @@
 const steps = [
   {
     title: 'List what you own',
-    body: 'Add a tool with a photo, its category and how worn it is. It goes straight on the board.',
+    body: 'Add a tool with its name, category and how worn it is. It goes straight on the board.',
   },
   {
     title: 'Ask for the days you need',

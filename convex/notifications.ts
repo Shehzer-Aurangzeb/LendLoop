@@ -101,7 +101,7 @@ const postSigned = async (url: string, secret: string, body: string) => {
   }
 }
 
-// Never throws on a send failure: the loan change already committed, so a notifier problem is only logged.
+// Never throws: the loan change already committed, so a send failure is only logged.
 export const sendRequestNotification = internalAction({
   args: {
     loanId: v.id('loans'),

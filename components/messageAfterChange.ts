@@ -1,6 +1,5 @@
 import { ConvexError } from 'convex/values'
 
-// Resolves to a short message for the screen, or null when the change worked.
 export const messageAfterChange = async (
   change: () => Promise<unknown>,
   fallback: string

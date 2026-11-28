@@ -4,7 +4,6 @@ import type { api } from '@/convex/_generated/api'
 
 type MyTool = FunctionReturnType<typeof api.tools.listMine>[number]
 
-// 'With Liam until Sat 28 Nov · 1 request waiting'; '' when there is nothing to say.
 export const formatToolStatusLine = ({
   lentOut,
   waitingRequestCount,

@@ -7,7 +7,6 @@ const weekdayAndDayFormat = new Intl.DateTimeFormat('en-GB', {
   timeZone: 'UTC',
 })
 
-// 'Fri 11 – Sun 13 Dec'; 'Mon 30 Nov – Wed 2 Dec'; one day is just 'Fri 11 Dec'.
 export const formatDateRange = (startDate: string, endDate: string) => {
   if (startDate === endDate) {
     return formatShortDate(startDate)

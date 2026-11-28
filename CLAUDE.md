@@ -2,8 +2,8 @@
 
 Context for AI assistants working on this codebase.
 
-**Read `BRIEF.md` first** (gitignored, local only). It holds the full assignment,
-why it exists, and every decision settled before the build started.
+**Read `BRIEF.md` first** (gitignored, local only). It holds the full assignment
+and every decision settled before the build started.
 
 ---
 
@@ -12,7 +12,7 @@ why it exists, and every decision settled before the build started.
 Read this section first. It applies to every reply.
 
 - **Who I am.** A frontend-focused full-stack developer. Strong on React, Next.js and TypeScript; backend experience with NestJS, Express, PostgreSQL and Prisma. **New to Convex and n8n, a little Clerk.** Pitch explanations from there.
-- **I must be able to explain every file in an interview.** Building it is not enough; I have to understand why it is built that way.
+- **I must be able to explain every file.** Building it is not enough; I have to understand why it is built that way.
 - **Use simple English.** Plain words beat jargon.
 - **Answer in short bullets, like checkpoints.** One idea per bullet. No long paragraphs.
 - **Name an unavoidable term once with a plain note**, e.g. "`httpAction` (a Convex function with a public URL)".
@@ -21,7 +21,7 @@ Read this section first. It applies to every reply.
 - **Say the "so what"** for each point.
 - **Be honest.** Broken is broken. Unsure is unsure.
 - **One recommendation, not a menu.** Pick first, alternative in one line.
-- **After each step, tell me what an interviewer might ask about it**, and add the decision to `docs/decisions.md`.
+- **After each step, tell me what a reviewer might ask about it**, and add the decision to `docs/decisions.md`.
 
 ---
 

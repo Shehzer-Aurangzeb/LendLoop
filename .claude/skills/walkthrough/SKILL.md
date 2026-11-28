@@ -6,7 +6,7 @@ disable-model-invocation: true
 
 The feature is built and reviewed. The goal now is that the user **understands what was built**: the flow, the system design and the decisions. The code matters less than their picture of it.
 
-The user is a frontend-focused full-stack developer: strong on React, Next.js and TypeScript, has used NestJS, Prisma and Postgres, and is new to Convex and n8n. They must explain this build in an interview. Pitch everything from what they know up to what they don't, in plain words.
+The user is a frontend-focused full-stack developer: strong on React, Next.js and TypeScript, has used NestJS, Prisma and Postgres, and is new to Convex and n8n. They must be able to explain this build without the code. Pitch everything from what they know up to what they don't, in plain words.
 
 ## 1. Gather what was built
 

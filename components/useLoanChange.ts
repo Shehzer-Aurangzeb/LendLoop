@@ -1,6 +1,5 @@
 import { useState } from 'react'
 
-// What happens to the button's row once the change works.
 export type RowAfterChange = 'leaves' | 'stays'
 
 // The button is gone after a change, so focus would drop to <body>.

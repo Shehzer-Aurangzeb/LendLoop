@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { categoryLabels } from '@/components/categoryLabels'
+import CategoryTile from '@/components/CategoryTile'
 import InlineError from '@/components/InlineError'
-import PhotoPlaceholder from '@/components/PhotoPlaceholder'
 import RadioGroup from '@/components/RadioGroup'
 import RemoveToolButton from '@/components/RemoveToolButton'
 import { conditionLabels } from '@/components/conditionLabels'
@@ -115,7 +115,9 @@ const ToolForm = ({
         {labels.heading}
       </h2>
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-        <PhotoPlaceholder category={tool.category} />
+        <div className="w-24" aria-hidden="true">
+          <CategoryTile category={tool.category} />
+        </div>
         <label className={fieldLabelClass}>
           Name
           <input

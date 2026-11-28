@@ -3,7 +3,7 @@ description: Review the current branch diff against the project review checklist
 argument-hint: "[base branch — optional, defaults to main]"
 ---
 
-Pre-review this work the way a Fluence reviewer would, BEFORE we commit or open a PR,
+Pre-review this work the way a strict outside reviewer would, BEFORE we commit or open a PR,
 so we catch issues first.
 
 1. Find the base and diff:

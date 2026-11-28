@@ -1,6 +1,6 @@
 # Bug Log Format
 
-The bug log is `~/learning/lendloop/bug-log.md`, outside the repo. It is the user's record of real bugs and how they were solved, kept so they can tell each story later (in an interview, for instance). Agents **append** to it and never read it back: add the entry with a shell append (`>>`), not by opening the file.
+The bug log is `~/learning/lendloop/bug-log.md`, outside the repo. It is the user's record of real bugs and how they were solved, kept so they can tell each story later. Agents **append** to it and never read it back: add the entry with a shell append (`>>`), not by opening the file.
 
 Write an entry for every real bug fixed: wrong behaviour a user or test could see. Typos, lint and formatting fixes are not bugs.
 

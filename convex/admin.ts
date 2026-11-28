@@ -15,7 +15,7 @@ import { loadToolSummary, requireLiveTool } from '@/convex/lib/tools'
 import { firstNameOf, loadUsersById } from '@/convex/lib/users'
 import { categoryValidator, loanStatusValidator } from '@/convex/schema'
 
-// ponytail: loads every live tool; paginate like the loan list if tools pass the hundreds.
+// Loads every live tool; paginate like the loan list if tools pass the hundreds.
 export const listListings = query({
   args: {},
   returns: v.array(
@@ -113,7 +113,7 @@ export const listLoans = query({
   },
 })
 
-// ponytail: loads every live tool, like listListings; paginate if tools pass the hundreds.
+// Loads every live tool, like listListings; paginate if tools pass the hundreds.
 export const listLenders = query({
   args: {},
   returns: v.array(

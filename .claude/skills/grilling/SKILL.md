@@ -31,7 +31,7 @@ Finding _facts_ is your job, never the user's. When a frontier question needs a 
 
 ## Two kinds of question
 
-The user is a frontend-focused full-stack developer: strong on React, Next.js and TypeScript, has used NestJS, Prisma and Postgres, and is new to Convex and n8n. They must explain this build in an interview. Pitch every question and explanation from what they know up to what they don't, in plain words.
+The user is a frontend-focused full-stack developer: strong on React, Next.js and TypeScript, has used NestJS, Prisma and Postgres, and is new to Convex and n8n. They must be able to explain this build without the code. Pitch every question and explanation from what they know up to what they don't, in plain words.
 
 - **[Product]**: what the feature does: behaviour, copy, layout, rules neighbours care about. Give your recommended answer; the user accepts or changes it.
 - **[Design]**: how the system does it: where the logic lives, the data model, what runs on the server versus the browser, concurrency, failure and recovery, performance, security, trade-offs and what we reject. **Ask the user's own answer first, with no recommendation shown.** Then confirm or correct it: say what was right, what was missing, and why, with a concrete LendLoop example ("two neighbours request the same drill for overlapping dates at the same moment").
