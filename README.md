@@ -6,12 +6,31 @@ A neighbourhood tool-lending board. Neighbours list tools, ask to borrow them fo
 
 **Stack:** Next.js 16 (App Router) · Clerk · Convex · n8n (Docker) · TypeScript
 
-## Demo video
+## Screenshots
 
-> _Video link goes here._
+| Signed out: tagline and sign-in | Public list: name and category only |
+| --- | --- |
+| ![Landing page](docs/screenshots/01-landing.png) | ![Public tool list](docs/screenshots/02-public-list.png) |
+
+| Board: status, filters, Trusted badge | Tool page: lent days and request form |
+| --- | --- |
+| ![Board](docs/screenshots/03-board.png) | ![Tool page](docs/screenshots/04-tool-page.png) |
+
+| My tools: list and edit your own | Loans: waiting, borrowing, lent out |
+| --- | --- |
+| ![My tools](docs/screenshots/05-my-tools.png) | ![Loans](docs/screenshots/06-loans.png) |
+
+| Admin: remove any listing | Admin: every loan, filtered by status |
+| --- | --- |
+| ![Admin listings](docs/screenshots/07-admin-listings.png) | ![Admin loans](docs/screenshots/08-admin-loans.png) |
+
+| Admin: mark Trusted Lenders | Loading: skeletons, not blank space |
+| --- | --- |
+| ![Admin lenders](docs/screenshots/09-admin-lenders.png) | ![Loading skeleton](docs/screenshots/10-loading.png) |
 
 ## Contents
 
+- [Screenshots](#screenshots)
 - [What you can do](#what-you-can-do)
 - [Setup](#setup)
 - [n8n](#n8n)
@@ -48,14 +67,17 @@ Needs Node 20 or newer, pnpm and Docker. Convex runs as a local deployment, so n
 
 2. Make a Clerk app (Clerk's [Convex guide](https://docs.convex.dev/auth/clerk)):
    1. At [dashboard.clerk.com](https://dashboard.clerk.com), create an application and pick any sign-in method, such as email.
-   2. Under **JWT templates**, create a template from the **Convex** preset. Keep the name `convex`, since Convex's Clerk provider asks for a token by that name. Add these claims, so Convex gets each neighbour's name and email:
+   2. Turn on Clerk's **Convex integration**. It adds `aud: "convex"` to Clerk's session token, and Convex's Clerk provider then uses that token.
+   3. Under **Sessions**, **Customize session token**, add these claims next to what is there, so Convex gets each neighbour's name and email. Without them every neighbour shows as "Neighbour":
 
       ```json
       { "name": "{{user.full_name}}", "email": "{{user.primary_email_address}}" }
       ```
 
-   3. Copy the template's **Issuer** URL (like `https://your-app.clerk.accounts.dev`). It is `CLERK_JWT_ISSUER_DOMAIN` in step 5.
-   4. Under **API keys**, copy the publishable key and the secret key.
+      Using a JWT template named `convex` instead? Put the claims there. The provider only reads the template when the session token has no `aud: "convex"`.
+
+   4. Copy your **Frontend API URL** (like `https://your-app.clerk.accounts.dev`). It is `CLERK_JWT_ISSUER_DOMAIN` in step 5.
+   5. Under **API keys**, copy the publishable key and the secret key.
 
 3. Copy `.env.example` to `.env.local` and fill in the two Clerk keys. Convex writes `NEXT_PUBLIC_CONVEX_URL` itself in the next step.
 
@@ -270,7 +292,7 @@ Every decision and its reason is in [`docs/decisions.md`](docs/decisions.md). Th
 
 ## What I'd change for production
 
-- **Sync users with a Clerk webhook.** Today `users.store` creates the row on first sign-in. A Svix-signed `user.created` / `user.updated` / `user.deleted` webhook keeps names and emails current and removes deleted users.
+- **Sync users with a Clerk webhook.** Today `users.store` creates the row on first sign-in and refreshes the name and email on each later sign-in. A Svix-signed `user.created` / `user.updated` / `user.deleted` webhook also catches changes between sign-ins and removes deleted users.
 - **Rate limiting.** Limit requests per user on `loans.request` and `tools.create` (for example with the Convex rate-limiter component), and on the HTTP endpoints.
 - **Cloud Convex.** Move from the local deployment to a hosted dev and prod deployment, with env vars set per deployment.
 - **Hosted n8n over HTTPS.** n8n Cloud or a server behind TLS, so payloads and signatures are private in transit. Rotate secrets by accepting the old and new one for a short switch-over.

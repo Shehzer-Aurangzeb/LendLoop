@@ -25,6 +25,7 @@ Running list, one entry per decision. Becomes the design and security section of
 
 - **Users are keyed on `tokenIdentifier`**, Clerk's issuer plus subject, as the Convex "Storing users" docs recommend. It stays unique even if a second login provider is added.
 - **`users.store` looks up, then inserts if missing, with no unique constraint.** Convex mutations are serializable, so two tabs racing at first sign-in end with one row: the loser re-runs and finds the winner's row.
+- **Each sign-in refreshes `name` and `email` from the Clerk token, never `role` or `isTrustedLender`.** A renamed neighbour shows the new name, and a user cannot change their own permissions. A token missing a claim keeps the stored value instead of blanking it, and an unchanged row is not written, so queries that read users do not rerun on every sign-in.
 - **`requireIdentity` is separate from `requireUser`.** `users.store` runs before a users row exists, so it needs "signed in" without "has a row". All three helpers live in `convex/lib/auth.ts`, and no public function reads `ctx.auth` directly.
 - **`requireUser` and `requireAdmin` throw on the server.** The UI also waits for `users.store` before running user queries, but that is only so the screen looks right. The server check is what protects the data.
 
@@ -40,6 +41,7 @@ Running list, one entry per decision. Becomes the design and security section of
 - **Each category's icon and tile tint live in one `Record<Category, …>`.** A new category is a type error until it has both.
 - **Step numbers use a darker marigold than the logo.** The design's marigold is 3.4:1 on white; text needs 4.5:1.
 - **Signed in, the landing page hides its sign-in prompts**, the hero button and the "See something you need?" band, since their only job is to invite sign-in.
+- **A sent borrow request shows on the button ("✓ Request sent") and in a green panel, not a toast.** It is the only success message in the app; every other action shows by the list changing live. A toast would need a provider, timers and its own live region for one use. The button keeps the state until the dates change, so a fast local send cannot flash past.
 - **Loan status colours wait for the loan screens.** The landing page has no statuses to show.
 
 ## Data model
