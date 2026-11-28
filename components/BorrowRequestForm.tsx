@@ -7,6 +7,7 @@ import { countDaysInRange } from '@/components/countDaysInRange'
 import { formatDayCount } from '@/components/formatDayCount'
 import { formatDateRange } from '@/components/formatDateRange'
 import InlineError from '@/components/InlineError'
+import StrokeIcon, { CHECK_PATH } from '@/components/StrokeIcon'
 import { useBorrowRequest } from '@/components/useBorrowRequest'
 
 type BorrowRequestFormProps = {
@@ -34,6 +35,7 @@ const BorrowRequestForm = ({
   const browserToday = new Date().toLocaleDateString('en-CA')
   const hasRange = startDate !== '' && endDate !== '' && endDate >= startDate
   const dayCount = hasRange ? countDaysInRange(startDate, endDate) : 0
+  const buttonLabel = isSending ? 'Sending…' : `Send request to ${lenderFirstName}`
 
   // After the render that shows it, so focus does not drop to the page when the dates clear.
   useEffect(() => {
@@ -72,7 +74,10 @@ const BorrowRequestForm = ({
             required
             min={browserToday}
             value={startDate}
-            onChange={(event) => setStartDate(event.target.value)}
+            onChange={(event) => {
+              setStartDate(event.target.value)
+              setIsSent(false)
+            }}
             className={inputClass}
           />
         </label>
@@ -83,7 +88,10 @@ const BorrowRequestForm = ({
             required
             min={startDate || browserToday}
             value={endDate}
-            onChange={(event) => setEndDate(event.target.value)}
+            onChange={(event) => {
+              setEndDate(event.target.value)
+              setIsSent(false)
+            }}
             className={inputClass}
           />
         </label>
@@ -102,9 +110,16 @@ const BorrowRequestForm = ({
       <button
         type="submit"
         aria-disabled={isSending}
-        className="min-h-[50px] cursor-pointer rounded-full bg-accent px-5 text-base font-semibold text-white hover:bg-accent-strong aria-disabled:cursor-wait aria-disabled:opacity-70"
+        className="flex min-h-[50px] cursor-pointer items-center justify-center gap-2 rounded-full bg-accent px-5 text-base font-semibold text-white hover:bg-accent-strong aria-disabled:cursor-wait aria-disabled:opacity-70"
       >
-        {isSending ? 'Sending…' : `Send request to ${lenderFirstName}`}
+        {isSent ? (
+          <span className="flex items-center gap-2 motion-safe:animate-pop-in">
+            <StrokeIcon path={CHECK_PATH} strokeWidth={2.4} className="size-5" />
+            Request sent
+          </span>
+        ) : (
+          buttonLabel
+        )}
       </button>
       <InlineError message={error} />
       {isSent && (
@@ -112,13 +127,20 @@ const BorrowRequestForm = ({
           role="status"
           ref={sentMessageRef}
           tabIndex={-1}
-          className="text-[15px] text-ink-soft"
+          className="flex items-start gap-2.5 rounded-[14px] bg-accent-soft px-4 py-3.5 text-[15px] text-accent-strong motion-safe:animate-pop-in"
         >
-          Request sent to {lenderFirstName}. You’ll see the answer under{' '}
-          <Link href="/loans" className="font-medium text-accent underline">
-            Loans
-          </Link>
-          .
+          <StrokeIcon
+            path={CHECK_PATH}
+            strokeWidth={2.4}
+            className="mt-0.5 size-5 shrink-0"
+          />
+          <span>
+            Request sent to {lenderFirstName}. You’ll see the answer under{' '}
+            <Link href="/loans" className="font-medium text-accent underline">
+              Loans
+            </Link>
+            .
+          </span>
         </p>
       )}
       <p className="text-center text-[13px] leading-normal text-ink-muted">

@@ -34,6 +34,15 @@
   --color-status-closed: #eeebe4;
 
   --shadow-lift: 0 12px 30px -12px rgb(30 38 33 / 0.45);
+
+  --animate-pop-in: pop-in 220ms ease-out;
+
+  @keyframes pop-in {
+    from {
+      opacity: 0;
+      transform: scale(0.96);
+    }
+  }
 }
 
 @theme inline {
