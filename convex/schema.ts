@@ -18,6 +18,11 @@ export const loanStatusValidator = v.union(
   v.literal('cancelled')
 )
 
+export const activityOutcomeValidator = v.union(
+  v.literal('sent'),
+  v.literal('failed')
+)
+
 export const conditionValidator = v.union(
   v.literal('like-new'),
   v.literal('good'),
@@ -67,7 +72,7 @@ export default defineSchema({
       v.literal('request-notification'),
       v.literal('overdue-reminder')
     ),
-    outcome: v.union(v.literal('sent'), v.literal('failed')),
+    outcome: activityOutcomeValidator,
     // 'YYYY-MM-DD', the day it happened.
     date: v.string(),
   }).index('by_loan_and_date', ['loanId', 'date']),

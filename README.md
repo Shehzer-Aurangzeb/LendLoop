@@ -44,9 +44,9 @@ Needs Node and pnpm. Convex runs as a local deployment, so no Convex account is 
 
 ## n8n
 
-n8n sends the request notifications. It runs in Docker; Convex reaches it at `localhost:5678`.
+n8n sends the request notifications and the daily overdue reminders. It runs in Docker; Convex reaches it at `localhost:5678`, and n8n reaches Convex at `host.docker.internal:3211`.
 
-1. From the repo root, make the n8n env file. Fill both values, each with its own `openssl rand -hex 32`, with no quotes around them.
+1. From the repo root, make the n8n env file. Fill every value, each with its own `openssl rand -hex 32`, with no quotes around them.
 
    ```bash
    cd n8n
@@ -81,6 +81,33 @@ n8n sends the request notifications. It runs in Docker; Convex reaches it at `lo
 8. See the message: in n8n open **Executions**, pick the newest run, and open the **Log mock message** node. Its `message` reads `To Ben: Asha approved Drill, 2026-12-01 to 2026-12-05`. It does not appear in `docker compose logs`.
 
 In the app, approving, declining or returning a loan, or making or cancelling a request, adds a new execution the same way. With a single account, request one of the seeded tools: the newest execution shows the message to its Lender, like `To <lender>: <your first name> asked to borrow <tool>, <start> to <end>`. If n8n is down, the change still saves; Convex retries after 1 and 5 minutes, then logs an error in the `pnpm dev` output.
+
+### Overdue reminders
+
+Every day at 09:00 (n8n's `GENERIC_TIMEZONE`), n8n asks Convex for overdue loans not yet reminded today, logs a mock reminder for each, and writes `sent` or `failed` back to Convex. Convex refuses any request not signed with `CONVEX_WEBHOOK_SECRET`.
+
+1. With `pnpm dev` running, give Convex the secret n8n signs with.
+
+   ```bash
+   npx convex env set CONVEX_WEBHOOK_SECRET "$(grep '^CONVEX_WEBHOOK_SECRET=' n8n/.env | cut -d= -f2)"
+   ```
+
+2. In n8n, create a second **Crypto** credential named `LendLoop Convex secret` and set **Hmac Secret** to the `CONVEX_WEBHOOK_SECRET` value from `n8n/.env`.
+3. Import `n8n/workflows/error-handler.json` the same way as before, then **Publish** it. n8n runs it only when published.
+4. Import `n8n/workflows/overdue-reminders.json`. Open **Sign due request**, **Sign sent result** and **Sign failed result** and select the `LendLoop Convex secret` credential if it is not already selected. The file presets `LendLoop error handler` as its error workflow, but a UI import gives the error handler a new id, so in the **...** menu open **Settings** and pick **Error workflow** `LendLoop error handler` again. Then **Publish** it so the 09:00 schedule runs.
+5. Check that Convex answers a signed request. From `n8n/`, the output ends in `HTTP 200` and lists today's due reminders. Pass `tampered` or `stale` to see `HTTP 401`.
+
+   ```bash
+   cd n8n
+   set -a; . ./.env; set +a
+   scripts/fetch-overdue-reminders.sh valid
+   ```
+
+6. Run it now: open the workflow and click **Execute workflow**. The seed data has one overdue loan. Open the **Send mock reminder** node to read `To Maya: please return Circular saw, it was due <date>`. The loan's activity row shows in the Convex dashboard, table `loanActivity`. A second run the same day finds nothing to send.
+
+- **See a failure:** set `isFailingOnPurpose = true` at the top of **Send mock reminder**. The node tries 3 times, 5 seconds apart, then the error branch writes `failed` for every due loan and **Fail run: reminders failed** ends the run in error, so `LendLoop error handler` runs too. Set it back and run again: the loans are retried and their rows become `sent`.
+- **See a crashed run:** stop `pnpm dev` and run the workflow. **Fetch due reminders** fails, so the run fails, and **Executions** shows a run of `LendLoop error handler`. Its **Log failed run** node shows the workflow name, the failed run's URL, the last node and the error message.
+- **Convex not on port 3211?** Change `convexSiteUrl` at the top of **Build due request**. It is the only place the URL is set.
 
 ## Make the demo admin
 

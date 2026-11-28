@@ -410,6 +410,7 @@ describe('loans.listMyBorrowing', () => {
       '_id',
       'endDate',
       'isOverdue',
+      'latestActivity',
       'lenderFirstName',
       'startDate',
       'status',
@@ -425,6 +426,7 @@ describe('loans.listMyBorrowing', () => {
       endDate: '2026-12-13',
       status: 'approved',
       isOverdue: false,
+      latestActivity: null,
     })
   })
 
@@ -1075,6 +1077,7 @@ describe('loans.listMyLentOut', () => {
       endDate: '2026-11-28',
       hasStarted: true,
       isOverdue: false,
+      latestActivity: null,
     })
   })
 
@@ -1107,5 +1110,121 @@ describe('loans.listMyLentOut', () => {
       ['2026-11-21', true, false],
       ['2026-11-27', false, false],
     ])
+  })
+})
+
+type NewActivity = Pick<Doc<'loanActivity'>, 'kind' | 'outcome' | 'date'>
+
+const insertActivity = (
+  t: TestConvex<typeof schema>,
+  loanId: Id<'loans'>,
+  activity: NewActivity
+) => t.run((ctx) => ctx.db.insert('loanActivity', { loanId, ...activity }))
+
+describe('latest loan activity on the borrowing and lent-out lists', () => {
+  const setUpBensOverdueLoan = async () => {
+    const setup = await setUpAshasDrill()
+    const loanId = await insertLoan(setup.t, setup.toolId, 'ben', {
+      startDate: '2026-11-20',
+      endDate: '2026-11-23',
+      status: 'approved',
+    })
+
+    return { ...setup, loanId }
+  }
+
+  test('the borrower and the lender both see the latest activity', async () => {
+    const { t, asAsha, asBen, loanId } = await setUpBensOverdueLoan()
+
+    await insertActivity(t, loanId, {
+      kind: 'overdue-reminder',
+      outcome: 'sent',
+      date: '2026-11-24',
+    })
+
+    const expected = {
+      outcome: 'sent',
+      label: 'Reminder sent 2 days ago',
+    }
+    const [borrowed] = await asBen.query(api.loans.listMyBorrowing)
+    const [lent] = await asAsha.query(api.loans.listMyLentOut)
+
+    expect(borrowed.latestActivity).toEqual(expected)
+    expect(lent.latestActivity).toEqual(expected)
+  })
+
+  test('the latest day wins, then the latest row on the same day', async () => {
+    const { t, asBen, loanId } = await setUpBensOverdueLoan()
+
+    await insertActivity(t, loanId, {
+      kind: 'overdue-reminder',
+      outcome: 'sent',
+      date: yesterday,
+    })
+    await insertActivity(t, loanId, {
+      kind: 'request-notification',
+      outcome: 'sent',
+      date: today,
+    })
+    await insertActivity(t, loanId, {
+      kind: 'overdue-reminder',
+      outcome: 'failed',
+      date: today,
+    })
+    await insertActivity(t, loanId, {
+      kind: 'overdue-reminder',
+      outcome: 'sent',
+      date: '2026-11-21',
+    })
+
+    const [row] = await asBen.query(api.loans.listMyBorrowing)
+
+    expect(row.latestActivity).toEqual({
+      outcome: 'failed',
+      label: 'Reminder failed today',
+    })
+  })
+
+  test('a request notification shows only to the person it went to', async () => {
+    const { t, asAsha, asBen, loanId } = await setUpBensOverdueLoan()
+
+    // The loan is approved, so its latest notification went to Ben.
+    await insertActivity(t, loanId, {
+      kind: 'request-notification',
+      outcome: 'sent',
+      date: today,
+    })
+
+    const [borrowed] = await asBen.query(api.loans.listMyBorrowing)
+    const [lent] = await asAsha.query(api.loans.listMyLentOut)
+
+    expect(borrowed.latestActivity?.label).toBe(
+      'Request notification sent today'
+    )
+    expect(lent.latestActivity).toBeNull()
+  })
+
+  test("another loan's activity never shows on this loan", async () => {
+    const { t, asBen, asCara, toolId, loanId } = await setUpBensOverdueLoan()
+    const carasLoanId = await insertLoan(t, toolId, 'cara', {
+      startDate: '2026-12-01',
+      endDate: '2026-12-02',
+      status: 'requested',
+    })
+
+    await insertActivity(t, loanId, {
+      kind: 'overdue-reminder',
+      outcome: 'sent',
+      date: today,
+    })
+
+    const [bensRow] = await asBen.query(api.loans.listMyBorrowing)
+    const carasRows = await asCara.query(api.loans.listMyBorrowing)
+
+    expect(bensRow.latestActivity?.label).toBe('Reminder sent today')
+    expect(carasRows).toEqual([
+      expect.objectContaining({ _id: carasLoanId, latestActivity: null }),
+    ])
+    expect(await asCara.query(api.loans.listMyLentOut)).toEqual([])
   })
 })

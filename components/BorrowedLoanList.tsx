@@ -29,6 +29,7 @@ const BorrowedLoanList = ({ loans }: { loans: BorrowedLoan[] }) => {
           otherPersonLine={`from ${loan.lenderFirstName}`}
           startDate={loan.startDate}
           endDate={loan.endDate}
+          activity={loan.latestActivity}
         >
           {loan.status === 'requested' && (
             <span className="text-sm text-ink-muted">

@@ -1,0 +1,47 @@
+{
+  "id": "LendLoopErrHndl1",
+  "name": "LendLoop error handler",
+  "nodes": [
+    {
+      "id": "d7a0b5c2-0101-4000-8000-000000000101",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "id": "d7a0b5c2-0102-4000-8000-000000000102",
+      "name": "Log failed run",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        220,
+        0
+      ],
+      "parameters": {
+        "jsCode": "const { workflow, execution } = $json\nconst failure = {\n  workflowName: workflow.name,\n  executionUrl: execution.url,\n  lastNodeExecuted: execution.lastNodeExecuted,\n  errorMessage: execution.error?.message,\n}\n\nconsole.log(`n8n run failed: ${JSON.stringify(failure)}`)\n\nreturn [{ json: failure }]\n"
+      }
+    }
+  ],
+  "connections": {
+    "Error Trigger": {
+      "main": [
+        [
+          {
+            "node": "Log failed run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}

@@ -54,5 +54,5 @@ Screen (Approve button)
 - **Only the final failure is logged in Convex.** Attempts 1 and 2 leave no error line; they show in `_scheduled_functions`.
 - **n8n shows a refused request as a green execution.** Open it to see it ended at Respond 401.
 - **When an Admin removes a listing, the Borrower reads "<Lender> declined <tool>".** The event is `declined`; there is no reason field.
-- **Outcomes are not stored in `loanActivity` yet.** That is F8.
+- **Only the final outcome is stored in `loanActivity`** (`sent`, or `failed` after the last retry). Attempts 1 and 2 leave no row.
 - **Production needs HTTPS and secret rotation.** HTTPS keeps the body and signature private in transit; rotation accepts the old and new secret during a switch. There is no README production note yet; it lands with the final README pass.
